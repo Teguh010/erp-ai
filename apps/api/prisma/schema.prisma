@@ -5,7 +5,7 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
@@ -161,6 +161,39 @@ model BOMItem {
   quantity    Int
 
   bom         BillOfMaterials @relation(fields: [bomId], references: [id])
+}
+
+// --- SALES MODULE ---
+model Customer {
+  id        String   @id @default(uuid())
+  name      String
+  email     String?
+  phone     String?
+  createdAt DateTime @default(now())
+
+  salesOrders SalesOrder[]
+}
+
+model SalesOrder {
+  id          String   @id @default(uuid())
+  customerId  String
+  status      String
+  totalAmount Float
+  createdAt   DateTime @default(now())
+
+  customer Customer        @relation(fields: [customerId], references: [id])
+  items    SalesOrderItem[]
+}
+
+model SalesOrderItem {
+  id           String @id @default(uuid())
+  salesOrderId String
+  productId    String
+  quantity     Int
+  price        Float
+
+  salesOrder SalesOrder @relation(fields: [salesOrderId], references: [id])
+  product    Product    @relation(fields: [productId], references: [id])
 }
 
 // --- SYSTEM LOGS & AI ---
