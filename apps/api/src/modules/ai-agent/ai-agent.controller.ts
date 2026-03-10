@@ -7,6 +7,7 @@ import {
   Param,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { AiAgentService } from './ai-agent.service';
 import {
@@ -18,42 +19,36 @@ import {
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 
+@ApiTags('AI')
+@ApiBearerAuth('JWT-auth')
 @Controller('ai')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 export class AiAgentController {
   constructor(private readonly aiAgentService: AiAgentService) {}
 
-  /**
-   * General chat endpoint with RAG
-   */
   @Post('chat')
+  @ApiOperation({ summary: 'Chat with AI assistant using RAG' })
   async chat(@Body() dto: ChatQueryDto) {
     const response = await this.aiAgentService.chat(dto.question, dto.context);
     return { response };
   }
 
-  /**
-   * Inventory analysis
-   */
   @Post('analyze/inventory')
+  @ApiOperation({ summary: 'AI-powered inventory analysis' })
   async analyzeInventory(@Body() dto: AnalyticsQueryDto) {
     const response = await this.aiAgentService.analyzeInventory(dto.query);
     return { response };
   }
 
-  /**
-   * Production planning analysis
-   */
   @Post('analyze/production')
+  @ApiOperation({ summary: 'AI-powered production planning analysis' })
   async analyzeProduction(@Body() dto: AnalyticsQueryDto) {
     const response = await this.aiAgentService.analyzeProduction(dto.query);
     return { response };
   }
 
-  /**
-   * Text-to-SQL query (read-only)
-   */
   @Post('query')
+  @ApiOperation({ summary: 'Natural language to SQL query' })
   @Roles('ADMIN', 'ANALYST')
   async textToSQL(@Body() dto: TextToSQLDto) {
     return this.aiAgentService.textToSQL(dto.naturalLanguageQuery);

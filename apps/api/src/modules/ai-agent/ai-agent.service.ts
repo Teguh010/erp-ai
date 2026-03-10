@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../database/prisma.service';
 import { RagService } from './services/rag.service';
-import OpenAI from 'openai';
+import Groq from 'groq-sdk';
 import {
   SYSTEM_PROMPT,
   RAG_PROMPT_TEMPLATE,
@@ -14,18 +14,19 @@ import {
 @Injectable()
 export class AiAgentService {
   private readonly logger = new Logger(AiAgentService.name);
-  private openai: OpenAI | null = null;
+  private groq: Groq | null = null;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
     private readonly ragService: RagService,
   ) {
-    const apiKey = this.configService.get<string>('OPENAI_API_KEY');
+    const apiKey = this.configService.get<string>('GROQ_API_KEY');
     if (apiKey) {
-      this.openai = new OpenAI({ apiKey });
+      this.groq = new Groq({ apiKey });
+      this.logger.log('Groq AI service initialized');
     } else {
-      this.logger.warn('OPENAI_API_KEY not set - AI features will be limited');
+      this.logger.warn('GROQ_API_KEY not set - AI features will be limited');
     }
   }
 
@@ -218,19 +219,19 @@ export class AiAgentService {
   }
 
   /**
-   * Generate response using OpenAI
+   * Generate response using Groq
    */
   private async generateResponse(
     prompt: string,
     rawOutput = false,
   ): Promise<string> {
-    if (!this.openai) {
-      return 'AI service is not configured. Please set OPENAI_API_KEY in environment variables.';
+    if (!this.groq) {
+      return 'AI service is not configured. Please set GROQ_API_KEY in environment variables.';
     }
 
     try {
-      const response = await this.openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+      const response = await this.groq.chat.completions.create({
+        model: 'llama-3.3-70b-versatile',
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: prompt },
@@ -241,7 +242,7 @@ export class AiAgentService {
 
       return response.choices[0]?.message?.content || 'No response generated.';
     } catch (error) {
-      this.logger.error(`OpenAI API error: ${error.message}`);
+      this.logger.error(`Groq API error: ${error.message}`);
       return `AI service error: ${error.message}`;
     }
   }

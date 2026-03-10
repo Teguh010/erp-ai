@@ -10,6 +10,7 @@ import {
   UseGuards,
   Request,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { ProductionService } from './production.service';
 import {
@@ -25,6 +26,8 @@ import {
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 
+@ApiTags('Production')
+@ApiBearerAuth('JWT-auth')
 @Controller('production')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 export class ProductionController {
@@ -32,28 +35,33 @@ export class ProductionController {
 
   // ==================== BOM ====================
   @Post('bom')
+  @ApiOperation({ summary: 'Create a Bill of Materials' })
   @Roles('ADMIN', 'PRODUCTION_MANAGER')
   createBOM(@Body() dto: CreateBOMDto) {
     return this.productionService.createBOM(dto);
   }
 
   @Get('bom')
+  @ApiOperation({ summary: 'Get all BOMs' })
   getAllBOMs() {
     return this.productionService.getAllBOMs();
   }
 
   @Get('bom/:id')
+  @ApiOperation({ summary: 'Get BOM by ID' })
   getBOMById(@Param('id') id: string) {
     return this.productionService.getBOMById(id);
   }
 
   @Put('bom/:id')
+  @ApiOperation({ summary: 'Update BOM' })
   @Roles('ADMIN', 'PRODUCTION_MANAGER')
   updateBOM(@Param('id') id: string, @Body() dto: UpdateBOMDto) {
     return this.productionService.updateBOM(id, dto);
   }
 
   @Delete('bom/:id')
+  @ApiOperation({ summary: 'Delete BOM' })
   @Roles('ADMIN')
   deleteBOM(@Param('id') id: string) {
     return this.productionService.deleteBOM(id);
@@ -61,22 +69,26 @@ export class ProductionController {
 
   // ==================== PRODUCTION ORDER ====================
   @Post('orders')
+  @ApiOperation({ summary: 'Create a production order' })
   @Roles('ADMIN', 'PRODUCTION_MANAGER')
   createProductionOrder(@Body() dto: CreateProductionOrderDto) {
     return this.productionService.createProductionOrder(dto);
   }
 
   @Get('orders')
+  @ApiOperation({ summary: 'Get all production orders' })
   getAllProductionOrders() {
     return this.productionService.getAllProductionOrders();
   }
 
   @Get('orders/:id')
+  @ApiOperation({ summary: 'Get production order by ID' })
   getProductionOrderById(@Param('id') id: string) {
     return this.productionService.getProductionOrderById(id);
   }
 
   @Put('orders/:id')
+  @ApiOperation({ summary: 'Update production order' })
   @Roles('ADMIN', 'PRODUCTION_MANAGER')
   updateProductionOrder(
     @Param('id') id: string,
@@ -86,6 +98,7 @@ export class ProductionController {
   }
 
   @Post('orders/:id/start')
+  @ApiOperation({ summary: 'Start production (deduct raw materials)' })
   @Roles('ADMIN', 'PRODUCTION_MANAGER')
   startProduction(
     @Param('id') id: string,
@@ -100,6 +113,7 @@ export class ProductionController {
   }
 
   @Post('orders/:id/complete')
+  @ApiOperation({ summary: 'Complete production (add finished product)' })
   @Roles('ADMIN', 'PRODUCTION_MANAGER')
   completeProduction(
     @Param('id') id: string,
@@ -115,28 +129,33 @@ export class ProductionController {
 
   // ==================== SUPPLIER ====================
   @Post('suppliers')
+  @ApiOperation({ summary: 'Create a supplier' })
   @Roles('ADMIN', 'PROCUREMENT')
   createSupplier(@Body() dto: CreateSupplierDto) {
     return this.productionService.createSupplier(dto);
   }
 
   @Get('suppliers')
+  @ApiOperation({ summary: 'Get all suppliers' })
   getAllSuppliers() {
     return this.productionService.getAllSuppliers();
   }
 
   @Get('suppliers/:id')
+  @ApiOperation({ summary: 'Get supplier by ID' })
   getSupplierById(@Param('id') id: string) {
     return this.productionService.getSupplierById(id);
   }
 
   @Put('suppliers/:id')
+  @ApiOperation({ summary: 'Update supplier' })
   @Roles('ADMIN', 'PROCUREMENT')
   updateSupplier(@Param('id') id: string, @Body() dto: UpdateSupplierDto) {
     return this.productionService.updateSupplier(id, dto);
   }
 
   @Delete('suppliers/:id')
+  @ApiOperation({ summary: 'Delete supplier' })
   @Roles('ADMIN')
   deleteSupplier(@Param('id') id: string) {
     return this.productionService.deleteSupplier(id);
@@ -144,22 +163,26 @@ export class ProductionController {
 
   // ==================== PURCHASE ORDER ====================
   @Post('purchase-orders')
+  @ApiOperation({ summary: 'Create a purchase order' })
   @Roles('ADMIN', 'PROCUREMENT')
   createPurchaseOrder(@Body() dto: CreatePurchaseOrderDto) {
     return this.productionService.createPurchaseOrder(dto);
   }
 
   @Get('purchase-orders')
+  @ApiOperation({ summary: 'Get all purchase orders' })
   getAllPurchaseOrders() {
     return this.productionService.getAllPurchaseOrders();
   }
 
   @Get('purchase-orders/:id')
+  @ApiOperation({ summary: 'Get purchase order by ID' })
   getPurchaseOrderById(@Param('id') id: string) {
     return this.productionService.getPurchaseOrderById(id);
   }
 
   @Put('purchase-orders/:id/status')
+  @ApiOperation({ summary: 'Update purchase order status' })
   @Roles('ADMIN', 'PROCUREMENT', 'WAREHOUSE_MANAGER')
   updatePurchaseOrderStatus(
     @Param('id') id: string,
