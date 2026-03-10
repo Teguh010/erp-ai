@@ -50,9 +50,16 @@ export default function ProductionOrdersPage() {
     queryFn: () => api.getWarehouses(),
   });
 
-  const orders = ordersData?.data || [];
-  const products = productsData?.data || [];
-  const warehouses = warehousesData?.data || [];
+  // Handle both plain array and paginated { data: { data: [], meta } } API shapes
+  const orders = Array.isArray(ordersData?.data)
+    ? ordersData.data
+    : ordersData?.data?.data ?? [];
+  const products = Array.isArray(productsData?.data)
+    ? productsData.data
+    : productsData?.data?.data ?? [];
+  const warehouses = Array.isArray(warehousesData?.data)
+    ? warehousesData.data
+    : warehousesData?.data?.data ?? [];
 
   const createMutation = useMutation({
     mutationFn: (data: any) => api.createProductionOrder(data),

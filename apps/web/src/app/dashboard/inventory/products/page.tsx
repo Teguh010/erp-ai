@@ -38,7 +38,7 @@ export default function ProductsPage() {
 
   const { data: productsData, isLoading } = useQuery({
     queryKey: ['products', search],
-    queryFn: () => api.getProducts({ search }),
+    queryFn: () => api.getProducts(search.trim() ? { search: search.trim() } : undefined),
   });
 
   const { data: categoriesData } = useQuery({
@@ -46,7 +46,10 @@ export default function ProductsPage() {
     queryFn: () => api.getCategories(),
   });
 
-  const products = productsData?.data || [];
+  // API returns { data: { data: products[], meta } } for paginated list
+  const products = Array.isArray(productsData?.data)
+    ? productsData.data
+    : productsData?.data?.data ?? [];
   const categories = categoriesData?.data || [];
 
   const createMutation = useMutation({
@@ -163,7 +166,7 @@ export default function ProductsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {products.map((product: any) => (
+                {products?.map((product: any) => (
                   <TableRow key={product.id}>
                     <TableCell className="font-mono text-xs">{product.sku}</TableCell>
                     <TableCell className="font-medium">{product.name}</TableCell>

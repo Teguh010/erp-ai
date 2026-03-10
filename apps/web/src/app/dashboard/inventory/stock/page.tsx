@@ -32,7 +32,10 @@ export default function StockPage() {
   });
 
   const warehouses = warehousesData?.data || [];
-  const stocks = stockData?.data || [];
+  // API returns { data: { data: stocks[], meta } } for paginated list
+  const stocks = Array.isArray(stockData?.data)
+    ? stockData.data
+    : stockData?.data?.data ?? [];
 
   return (
     <div className="space-y-6">

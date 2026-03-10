@@ -5,6 +5,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import {
   Card,
+  CardHeader,
+  CardTitle,
   CardContent,
   Button,
   Select,
@@ -43,8 +45,13 @@ export default function BOMPage() {
     queryFn: () => api.getProducts(),
   });
 
-  const boms = bomsData?.data || [];
-  const products = productsData?.data || [];
+  // Handle both plain array and paginated { data: { data: [], meta } } API shapes
+  const boms = Array.isArray(bomsData?.data)
+    ? bomsData.data
+    : bomsData?.data?.data ?? [];
+  const products = Array.isArray(productsData?.data)
+    ? productsData.data
+    : productsData?.data?.data ?? [];
 
   const createMutation = useMutation({
     mutationFn: (data: any) => api.createBOM(data),

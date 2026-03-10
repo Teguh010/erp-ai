@@ -3,12 +3,15 @@ import { persist } from 'zustand/middleware';
 import { api } from '@/lib/api';
 import type { User, AuthState } from '@/types';
 
-export const useAuthStore = create<AuthState>()(
+export type AuthStore = AuthState & { _hasHydrated: boolean };
+
+export const useAuthStore = create<AuthStore>()(
   persist(
     (set) => ({
       user: null,
       token: null,
       isAuthenticated: false,
+      _hasHydrated: false,
 
       login: async (email: string, password: string) => {
         const response = await api.login(email, password);
@@ -21,6 +24,7 @@ export const useAuthStore = create<AuthState>()(
           user,
           token: access_token,
           isAuthenticated: true,
+          _hasHydrated: true,
         });
       },
 
@@ -53,6 +57,13 @@ export const useAuthStore = create<AuthState>()(
         token: state.token,
         isAuthenticated: state.isAuthenticated,
       }),
+      // Mark store as hydrated after Zustand rehydrates from storage
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          // Directly mutate the hydrated state (recommended for sync storage)
+          (state as AuthStore)._hasHydrated = true;
+        }
+      },
     }
   )
 );

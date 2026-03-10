@@ -54,8 +54,13 @@ export default function MovementsPage() {
     queryFn: () => api.getWarehouses(),
   });
 
-  const movements = movementsData?.data || [];
-  const products = productsData?.data || [];
+  // API responses are wrapped; paginated lists come as { data: { data: [], meta } }
+  const movements = Array.isArray(movementsData?.data)
+    ? movementsData.data
+    : movementsData?.data?.data ?? [];
+  const products = Array.isArray(productsData?.data)
+    ? productsData.data
+    : productsData?.data?.data ?? [];
   const warehouses = warehousesData?.data || [];
 
   const createMutation = useMutation({

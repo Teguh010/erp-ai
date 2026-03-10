@@ -31,7 +31,10 @@ export default function SuppliersPage() {
     queryFn: () => api.getSuppliers(),
   });
 
-  const suppliers = suppliersData?.data || [];
+  // Handle both plain array and wrapped { data: [] } API shapes
+  const suppliers = Array.isArray(suppliersData?.data)
+    ? suppliersData.data
+    : suppliersData?.data?.data ?? [];
 
   const createMutation = useMutation({
     mutationFn: (data: any) => api.createSupplier(data),

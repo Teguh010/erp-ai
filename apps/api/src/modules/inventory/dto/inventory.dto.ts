@@ -130,6 +130,10 @@ export class StockQueryDto {
   @IsOptional()
   productId?: string;
 
+  @IsString()
+  @IsOptional()
+  search?: string;
+
   @IsOptional()
   @Type(() => Number)
   @IsInt()

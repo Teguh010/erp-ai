@@ -75,11 +75,21 @@ export class InventoryService {
   }
 
   async getAllProducts(query: StockQueryDto) {
-    const { page = 1, limit = 20 } = query;
+    const { page = 1, limit = 20, search } = query;
     const skip = (page - 1) * limit;
+
+    const where = search?.trim()
+      ? {
+          OR: [
+            { name: { contains: search.trim(), mode: 'insensitive' as const } },
+            { sku: { contains: search.trim(), mode: 'insensitive' as const } },
+          ],
+        }
+      : undefined;
 
     const [products, total] = await Promise.all([
       this.prisma.product.findMany({
+        where,
         skip,
         take: limit,
         include: {
@@ -90,7 +100,7 @@ export class InventoryService {
         },
         orderBy: { name: 'asc' },
       }),
-      this.prisma.product.count(),
+      this.prisma.product.count({ where }),
     ]);
 
     return {
