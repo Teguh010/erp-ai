@@ -83,8 +83,19 @@ export default function ProductsPage() {
         name: product.name,
         description: product.description || '',
         categoryId: product.categoryId,
-        unitPrice: product.unitPrice.toString(),
-        reorderLevel: product.reorderLevel.toString(),
+        // Backend may use unitPrice / salePrice / purchasePrice; normalize safely to string
+        unitPrice: (
+          product.unitPrice ??
+          product.salePrice ??
+          product.purchasePrice ??
+          ''
+        ).toString(),
+        // Backend may use reorderLevel / minStockLevel; normalize safely to string
+        reorderLevel: (
+          product.reorderLevel ??
+          product.minStockLevel ??
+          '10'
+        ).toString(),
       });
     } else {
       setEditingProduct(null);
@@ -171,8 +182,17 @@ export default function ProductsPage() {
                     <TableCell className="font-mono text-xs">{product.sku}</TableCell>
                     <TableCell className="font-medium">{product.name}</TableCell>
                     <TableCell>{product.category?.name || '-'}</TableCell>
-                    <TableCell>{formatCurrency(product.unitPrice)}</TableCell>
-                    <TableCell>{product.reorderLevel}</TableCell>
+                    <TableCell>
+                      {formatCurrency(
+                        product.unitPrice ??
+                          product.salePrice ??
+                          product.purchasePrice ??
+                          0
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {product.reorderLevel ?? product.minStockLevel ?? '-'}
+                    </TableCell>
                     <TableCell>
                       <Badge variant={product.isActive ? 'success' : 'default'}>
                         {product.isActive ? 'Active' : 'Inactive'}

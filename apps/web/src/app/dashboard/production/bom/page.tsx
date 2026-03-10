@@ -92,11 +92,14 @@ export default function BOMPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.productId && formData.materials.length > 0) {
-      createMutation.mutate(formData);
+      createMutation.mutate({
+        productId: formData.productId,
+        items: formData.materials,
+      });
     }
   };
 
-  // Group BOMs by product
+  // Group BOMs by product and expand items using products list
   const groupedBOMs = boms.reduce((acc: any, bom: any) => {
     const productId = bom.productId;
     if (!acc[productId]) {
@@ -105,7 +108,16 @@ export default function BOMPage() {
         materials: [],
       };
     }
-    acc[productId].materials.push(bom);
+
+    (bom.items || []).forEach((item: any) => {
+      const material = products.find((p: any) => p.id === item.materialId);
+      acc[productId].materials.push({
+        id: bom.id, // keep BOM id for now for delete
+        material,
+        quantity: item.quantity,
+      });
+    });
+
     return acc;
   }, {});
 

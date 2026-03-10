@@ -182,7 +182,7 @@ class ApiClient {
     return response.data;
   }
 
-  async createBOM(data: { productId: string; materials: { materialId: string; quantity: number }[] }) {
+  async createBOM(data: { productId: string; items: { materialId: string; quantity: number }[] }) {
     const response = await this.client.post('/production/bom', data);
     return response.data;
   }
