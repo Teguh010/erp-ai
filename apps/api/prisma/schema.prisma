@@ -152,6 +152,7 @@ model BillOfMaterials {
   productId   String   @unique
   product     Product  @relation(fields: [productId], references: [id])
   items       BOMItem[]
+  productionOrders ProductionOrder[]
 }
 
 model BOMItem {
@@ -161,6 +162,27 @@ model BOMItem {
   quantity    Int
 
   bom         BillOfMaterials @relation(fields: [bomId], references: [id])
+}
+
+// --- PRODUCTION ORDERS ---
+model ProductionOrder {
+  id            String   @id @default(uuid())
+  bomId         String
+  quantity      Int
+  status        ProductionStatus @default(PENDING)
+  scheduledDate DateTime?
+  completedDate DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  bom           BillOfMaterials @relation(fields: [bomId], references: [id])
+}
+
+enum ProductionStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
 }
 
 // --- SALES MODULE ---
@@ -212,7 +234,19 @@ model AuditLog {
 model AIDocument {
   id          String   @id @default(uuid())
   title       String
-  content     String
+  content     String   @db.Text
   metadata    Json?
   createdAt   DateTime @default(now())
+  chunks      AIDocumentChunk[]
+}
+
+model AIDocumentChunk {
+  id          String   @id @default(uuid())
+  documentId  String
+  content     String   @db.Text
+  embedding   Json?    // Store vector as JSON for MySQL compatibility
+  chunkIndex  Int
+  createdAt   DateTime @default(now())
+
+  document    AIDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
 }
