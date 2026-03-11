@@ -16,6 +16,8 @@ import {
   CreatePurchaseOrderDto,
   UpdatePurchaseOrderStatusDto,
   POStatus,
+  CreatePackagingReportDto,
+  UpdatePackagingReportDto,
 } from './dto';
 import { MovementType } from '../inventory/dto';
 
@@ -337,5 +339,55 @@ export class ProductionService {
       data: { status: dto.status },
       include: { supplier: true, items: { include: { product: true } } },
     });
+  }
+
+  // ==================== LAPORAN PACKAGING ====================
+  async createPackagingReport(dto: CreatePackagingReportDto) {
+    return this.prisma.packagingReport.create({
+      data: {
+        date: new Date(dto.date),
+        aktivitas: dto.aktivitas,
+        tenagaPerempuan: dto.tenagaPerempuan ?? 0,
+        tenagaLaki: dto.tenagaLaki ?? 0,
+        hasilPackaging: dto.hasilPackaging ?? 0,
+        hpp: dto.hpp ?? 0,
+      },
+    });
+  }
+
+  async getAllPackagingReports(params?: { from?: string; to?: string }) {
+    const where: any = {};
+    if (params?.from || params?.to) {
+      where.date = {};
+      if (params.from) where.date.gte = new Date(params.from);
+      if (params.to) where.date.lte = new Date(params.to);
+    }
+    return this.prisma.packagingReport.findMany({
+      where,
+      orderBy: { date: 'desc' },
+    });
+  }
+
+  async getPackagingReportById(id: string) {
+    const report = await this.prisma.packagingReport.findUnique({
+      where: { id },
+    });
+    if (!report) throw new NotFoundException('Packaging report not found');
+    return report;
+  }
+
+  async updatePackagingReport(id: string, dto: UpdatePackagingReportDto) {
+    await this.getPackagingReportById(id);
+    const data: any = { ...dto };
+    if (dto.date) data.date = new Date(dto.date);
+    return this.prisma.packagingReport.update({
+      where: { id },
+      data,
+    });
+  }
+
+  async deletePackagingReport(id: string) {
+    await this.getPackagingReportById(id);
+    return this.prisma.packagingReport.delete({ where: { id } });
   }
 }

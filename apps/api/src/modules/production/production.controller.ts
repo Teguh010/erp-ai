@@ -22,6 +22,8 @@ import {
   UpdateSupplierDto,
   CreatePurchaseOrderDto,
   UpdatePurchaseOrderStatusDto,
+  CreatePackagingReportDto,
+  UpdatePackagingReportDto,
 } from './dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -196,5 +198,45 @@ export class ProductionController {
       warehouseId,
       req?.user?.sub,
     );
+  }
+
+  // ==================== LAPORAN PACKAGING ====================
+  @Post('packaging-reports')
+  @ApiOperation({ summary: 'Create packaging report' })
+  @Roles('ADMIN', 'PRODUCTION_MANAGER')
+  createPackagingReport(@Body() dto: CreatePackagingReportDto) {
+    return this.productionService.createPackagingReport(dto);
+  }
+
+  @Get('packaging-reports')
+  @ApiOperation({ summary: 'Get all packaging reports' })
+  getAllPackagingReports(
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.productionService.getAllPackagingReports({ from, to });
+  }
+
+  @Get('packaging-reports/:id')
+  @ApiOperation({ summary: 'Get packaging report by ID' })
+  getPackagingReportById(@Param('id') id: string) {
+    return this.productionService.getPackagingReportById(id);
+  }
+
+  @Put('packaging-reports/:id')
+  @ApiOperation({ summary: 'Update packaging report' })
+  @Roles('ADMIN', 'PRODUCTION_MANAGER')
+  updatePackagingReport(
+    @Param('id') id: string,
+    @Body() dto: UpdatePackagingReportDto,
+  ) {
+    return this.productionService.updatePackagingReport(id, dto);
+  }
+
+  @Delete('packaging-reports/:id')
+  @ApiOperation({ summary: 'Delete packaging report' })
+  @Roles('ADMIN')
+  deletePackagingReport(@Param('id') id: string) {
+    return this.productionService.deletePackagingReport(id);
   }
 }

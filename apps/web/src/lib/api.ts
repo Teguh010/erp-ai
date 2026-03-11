@@ -235,6 +235,57 @@ class ApiClient {
     return response.data;
   }
 
+  // Production - Laporan Packaging
+  async getPackagingReports(params?: { from?: string; to?: string }) {
+    const searchParams = params?.from || params?.to
+      ? new URLSearchParams()
+      : null;
+    if (params?.from) searchParams?.set('from', params.from);
+    if (params?.to) searchParams?.set('to', params.to);
+    const url = searchParams
+      ? `/production/packaging-reports?${searchParams.toString()}`
+      : '/production/packaging-reports';
+    const response = await this.client.get(url);
+    return response.data;
+  }
+
+  async getPackagingReport(id: string) {
+    const response = await this.client.get(`/production/packaging-reports/${id}`);
+    return response.data;
+  }
+
+  async createPackagingReport(data: {
+    date: string;
+    aktivitas: string;
+    tenagaPerempuan?: number;
+    tenagaLaki?: number;
+    hasilPackaging?: number;
+    hpp?: number;
+  }) {
+    const response = await this.client.post('/production/packaging-reports', data);
+    return response.data;
+  }
+
+  async updatePackagingReport(
+    id: string,
+    data: Partial<{
+      date: string;
+      aktivitas: string;
+      tenagaPerempuan: number;
+      tenagaLaki: number;
+      hasilPackaging: number;
+      hpp: number;
+    }>,
+  ) {
+    const response = await this.client.put(`/production/packaging-reports/${id}`, data);
+    return response.data;
+  }
+
+  async deletePackagingReport(id: string) {
+    const response = await this.client.delete(`/production/packaging-reports/${id}`);
+    return response.data;
+  }
+
   // Production - Suppliers
   async getSuppliers() {
     const response = await this.client.get('/production/suppliers');

@@ -8,6 +8,7 @@ import {
   IsDateString,
   IsEnum,
   Min,
+  IsNumber,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -130,4 +131,71 @@ export enum POStatus {
 export class UpdatePurchaseOrderStatusDto {
   @IsEnum(POStatus)
   status: POStatus;
+}
+
+// ==================== LAPORAN PACKAGING ====================
+export class CreatePackagingReportDto {
+  @IsDateString()
+  date: string;
+
+  @IsString()
+  aktivitas: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Type(() => Number)
+  tenagaPerempuan?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Type(() => Number)
+  tenagaLaki?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Type(() => Number)
+  hasilPackaging?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  hpp?: number;
+}
+
+export class UpdatePackagingReportDto {
+  @IsDateString()
+  @IsOptional()
+  date?: string;
+
+  @IsString()
+  @IsOptional()
+  aktivitas?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Type(() => Number)
+  tenagaPerempuan?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Type(() => Number)
+  tenagaLaki?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Type(() => Number)
+  hasilPackaging?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  hpp?: number;
 }

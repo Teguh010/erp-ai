@@ -178,6 +178,19 @@ model ProductionOrder {
   bom           BillOfMaterials @relation(fields: [bomId], references: [id])
 }
 
+// --- LAPORAN PACKAGING (aktivitas produksi: tenaga, hasil, HPP) ---
+model PackagingReport {
+  id               String   @id @default(uuid())
+  date             DateTime @db.Date
+  aktivitas        String
+  tenagaPerempuan  Int      @default(0)
+  tenagaLaki       Int      @default(0)
+  hasilPackaging   Int      @default(0)
+  hpp              Float    @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
 enum ProductionStatus {
   PENDING
   IN_PROGRESS

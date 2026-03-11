@@ -44,6 +44,7 @@ const navigation: NavItem[] = [
     children: [
       { name: 'Orders', href: '/dashboard/production/orders' },
       { name: 'BOM', href: '/dashboard/production/bom' },
+      { name: 'Laporan Packaging', href: '/dashboard/production/packaging' },
     ],
   },
   {
