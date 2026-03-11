@@ -1,5 +1,6 @@
 // Decorators
 export * from './decorators/roles.decorator';
+export * from './decorators/throttle.decorator';
 
 // Guards
 export * from './guards/roles.guard';

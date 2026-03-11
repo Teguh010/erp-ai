@@ -7,7 +7,12 @@ import {
   Param,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { AiAgentService } from './ai-agent.service';
 import {
@@ -18,6 +23,7 @@ import {
 } from './dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { ThrottleAI, ThrottleRelaxed } from '../../common';
 
 @ApiTags('AI')
 @ApiBearerAuth('JWT-auth')
@@ -27,28 +33,36 @@ export class AiAgentController {
   constructor(private readonly aiAgentService: AiAgentService) {}
 
   @Post('chat')
+  @ThrottleAI() // 10 requests per minute for AI operations
   @ApiOperation({ summary: 'Chat with AI assistant using RAG' })
+  @ApiResponse({ status: 429, description: 'Too many requests' })
   async chat(@Body() dto: ChatQueryDto) {
     const response = await this.aiAgentService.chat(dto.question, dto.context);
     return { response };
   }
 
   @Post('analyze/inventory')
+  @ThrottleAI() // 10 requests per minute for AI operations
   @ApiOperation({ summary: 'AI-powered inventory analysis' })
+  @ApiResponse({ status: 429, description: 'Too many requests' })
   async analyzeInventory(@Body() dto: AnalyticsQueryDto) {
     const response = await this.aiAgentService.analyzeInventory(dto.query);
     return { response };
   }
 
   @Post('analyze/production')
+  @ThrottleAI() // 10 requests per minute for AI operations
   @ApiOperation({ summary: 'AI-powered production planning analysis' })
+  @ApiResponse({ status: 429, description: 'Too many requests' })
   async analyzeProduction(@Body() dto: AnalyticsQueryDto) {
     const response = await this.aiAgentService.analyzeProduction(dto.query);
     return { response };
   }
 
   @Post('query')
+  @ThrottleAI() // 10 requests per minute for AI operations
   @ApiOperation({ summary: 'Natural language to SQL query' })
+  @ApiResponse({ status: 429, description: 'Too many requests' })
   @Roles('ADMIN', 'ANALYST')
   async textToSQL(@Body() dto: TextToSQLDto) {
     return this.aiAgentService.textToSQL(dto.naturalLanguageQuery);
@@ -73,6 +87,7 @@ export class AiAgentController {
    * Get all documents
    */
   @Get('documents')
+  @ThrottleRelaxed() // More relaxed for read operations
   async getAllDocuments() {
     return this.aiAgentService.getAllDocuments();
   }
