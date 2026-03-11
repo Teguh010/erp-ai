@@ -134,6 +134,12 @@ export class StockQueryDto {
   @IsOptional()
   search?: string;
 
+  // Cursor-based pagination
+  @IsOptional()
+  @IsString()
+  cursor?: string;
+
+  // Offset-based pagination (legacy)
   @IsOptional()
   @Type(() => Number)
   @IsInt()

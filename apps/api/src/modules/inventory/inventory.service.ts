@@ -22,6 +22,11 @@ import {
   CachePrefix,
   CacheTTL,
 } from '../cache/cache.service';
+import {
+  CursorPagination,
+  CursorPaginatedResponse,
+  SortOrder,
+} from '../../common/pagination';
 
 @Injectable()
 export class InventoryService {
@@ -120,25 +125,21 @@ export class InventoryService {
   }
 
   async getAllProducts(query: StockQueryDto) {
-    const { page = 1, limit = 20, search } = query;
+    const { page = 1, limit = 20, search, cursor } = query;
+
+    // Use cursor-based pagination if cursor is provided
+    if (cursor) {
+      return this.getProductsWithCursor(cursor, limit, search);
+    }
+
+    // Fallback to offset-based pagination
     const skip = (page - 1) * limit;
     const cacheKey = `${CachePrefix.PRODUCTS_LIST}${page}:${limit}:${search || ''}`;
 
     return this.cache.getOrSet(
       cacheKey,
       async () => {
-        const where = search?.trim()
-          ? {
-              OR: [
-                {
-                  name: { contains: search.trim(), mode: 'insensitive' as const },
-                },
-                {
-                  sku: { contains: search.trim(), mode: 'insensitive' as const },
-                },
-              ],
-            }
-          : undefined;
+        const where = this.buildProductSearchWhere(search);
 
         const [products, total] = await Promise.all([
           this.prisma.product.findMany({
@@ -166,8 +167,49 @@ export class InventoryService {
           },
         };
       },
-      CacheTTL.SHORT, // Short TTL for paginated lists
+      CacheTTL.SHORT,
     );
+  }
+
+  /**
+   * Get products with cursor-based pagination
+   */
+  async getProductsWithCursor(
+    cursor: string | undefined,
+    limit: number = 20,
+    search?: string,
+  ) {
+    const where = this.buildProductSearchWhere(search);
+    const cursorQuery = CursorPagination.buildCursorQuery<{ id: string }>(cursor);
+
+    const products = await this.prisma.product.findMany({
+      where,
+      ...cursorQuery,
+      take: limit + 1,
+      include: {
+        category: true,
+        stocks: {
+          include: { warehouse: true },
+        },
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    return CursorPagination.buildResult(products, limit);
+  }
+
+  /**
+   * Build search where clause for products
+   */
+  private buildProductSearchWhere(search?: string): Prisma.ProductWhereInput | undefined {
+    if (!search?.trim()) return undefined;
+
+    return {
+      OR: [
+        { name: { contains: search.trim() } },
+        { sku: { contains: search.trim() } },
+      ],
+    };
   }
 
   async getProductById(id: string) {
