@@ -62,6 +62,13 @@ export class ProductionController {
     return this.productionService.updateBOM(id, dto);
   }
 
+  @Delete('bom/items/:itemId')
+  @ApiOperation({ summary: 'Remove one material from BOM' })
+  @Roles('ADMIN', 'PRODUCTION_MANAGER')
+  deleteBOMItem(@Param('itemId') itemId: string) {
+    return this.productionService.deleteBOMItem(itemId);
+  }
+
   @Delete('bom/:id')
   @ApiOperation({ summary: 'Delete BOM' })
   @Roles('ADMIN')

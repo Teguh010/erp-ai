@@ -53,6 +53,7 @@ model Product {
   stocks      Stock[]
   movements   StockMovement[]
   bom         BillOfMaterials?
+  bomItemsAsMaterial BOMItem[]
   purchaseItems PurchaseOrderItem[]
   salesItems    SalesOrderItem[]
 }
@@ -162,6 +163,7 @@ model BOMItem {
   quantity    Int
 
   bom         BillOfMaterials @relation(fields: [bomId], references: [id])
+  material    Product         @relation(fields: [materialId], references: [id])
 }
 
 // --- PRODUCTION ORDERS ---

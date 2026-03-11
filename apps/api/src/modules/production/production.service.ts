@@ -61,7 +61,7 @@ export class ProductionService {
     return this.prisma.billOfMaterials.findMany({
       include: {
         product: true,
-        items: true,
+        items: { include: { material: true } },
         _count: { select: { productionOrders: true } },
       },
     });
@@ -72,7 +72,7 @@ export class ProductionService {
       where: { id },
       include: {
         product: true,
-        items: true,
+        items: { include: { material: true } },
         productionOrders: true,
       },
     });
@@ -100,7 +100,23 @@ export class ProductionService {
 
   async deleteBOM(id: string) {
     await this.getBOMById(id);
-    return this.prisma.billOfMaterials.delete({ where: { id } });
+    await this.prisma.$transaction([
+      this.prisma.productionOrder.deleteMany({ where: { bomId: id } }),
+      this.prisma.bOMItem.deleteMany({ where: { bomId: id } }),
+      this.prisma.billOfMaterials.delete({ where: { id } }),
+    ]);
+    return { id, deleted: true };
+  }
+
+  /** Hapus satu material dari BOM (satu BOMItem) */
+  async deleteBOMItem(itemId: string) {
+    const item = await this.prisma.bOMItem.findUnique({
+      where: { id: itemId },
+      include: { bom: true },
+    });
+    if (!item) throw new NotFoundException('BOM item not found');
+    await this.prisma.bOMItem.delete({ where: { id: itemId } });
+    return this.getBOMById(item.bomId);
   }
 
   // ==================== PRODUCTION ORDER ====================

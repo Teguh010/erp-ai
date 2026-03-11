@@ -192,6 +192,12 @@ class ApiClient {
     return response.data;
   }
 
+  /** Hapus satu material dari BOM (satu baris item) */
+  async deleteBOMItem(itemId: string) {
+    const response = await this.client.delete(`/production/bom/items/${itemId}`);
+    return response.data;
+  }
+
   // Production - Orders
   async getProductionOrders() {
     const response = await this.client.get('/production/orders');

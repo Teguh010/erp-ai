@@ -62,8 +62,15 @@ export default function BOMPage() {
     },
   });
 
-  const deleteMutation = useMutation({
+  const deleteBOMMutation = useMutation({
     mutationFn: (id: string) => api.deleteBOM(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['boms'] });
+    },
+  });
+
+  const deleteBOMItemMutation = useMutation({
+    mutationFn: (itemId: string) => api.deleteBOMItem(itemId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['boms'] });
     },
@@ -110,9 +117,11 @@ export default function BOMPage() {
     }
 
     (bom.items || []).forEach((item: any) => {
-      const material = products.find((p: any) => p.id === item.materialId);
+      // Pakai material dari API (include) jika ada; fallback ke products list
+      const material = item.material ?? products.find((p: any) => p.id === item.materialId);
       acc[productId].materials.push({
-        id: bom.id, // keep BOM id for now for delete
+        itemId: item.id,
+        bomId: bom.id,
         material,
         quantity: item.quantity,
       });
@@ -161,18 +170,18 @@ export default function BOMPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {group.materials.map((bom: any) => (
-                      <TableRow key={bom.id}>
-                        <TableCell className="font-medium">{bom.material?.name}</TableCell>
-                        <TableCell className="font-mono text-xs">{bom.material?.sku}</TableCell>
-                        <TableCell className="text-right">{bom.quantity}</TableCell>
+                    {group.materials.map((row: any) => (
+                      <TableRow key={row.itemId}>
+                        <TableCell className="font-medium">{row.material?.name}</TableCell>
+                        <TableCell className="font-mono text-xs">{row.material?.sku}</TableCell>
+                        <TableCell className="text-right">{row.quantity}</TableCell>
                         <TableCell className="text-right">
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => {
-                              if (confirm('Remove this material from BOM?')) {
-                                deleteMutation.mutate(bom.id);
+                              if (confirm('Hapus material ini dari BOM?')) {
+                                deleteBOMItemMutation.mutate(row.itemId);
                               }
                             }}
                           >
