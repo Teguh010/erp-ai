@@ -93,7 +93,9 @@ describe('ProductionService', () => {
           items: [{ materialId: 'material-1', quantity: 2 }],
         };
 
-        await expect(service.createBOM(dto)).rejects.toThrow(BadRequestException);
+        await expect(service.createBOM(dto)).rejects.toThrow(
+          BadRequestException,
+        );
         await expect(service.createBOM(dto)).rejects.toThrow(
           'Product already has a BOM',
         );
@@ -131,7 +133,15 @@ describe('ProductionService', () => {
         const bom = {
           ...createTestBOM(),
           product: createTestProduct(),
-          items: [{ id: 'item-1', bomId: 'bom-1', materialId: 'mat-1', quantity: 5, material: createTestProduct() }],
+          items: [
+            {
+              id: 'item-1',
+              bomId: 'bom-1',
+              materialId: 'mat-1',
+              quantity: 5,
+              material: createTestProduct(),
+            },
+          ],
           productionOrders: [],
         };
 
@@ -366,7 +376,12 @@ describe('ProductionService', () => {
             ...createTestBOM(),
             product: createTestProduct(),
             items: [
-              { id: 'item-1', bomId: 'bom-1', materialId: 'mat-1', quantity: 2 },
+              {
+                id: 'item-1',
+                bomId: 'bom-1',
+                materialId: 'mat-1',
+                quantity: 2,
+              },
             ],
           },
         };
@@ -377,7 +392,11 @@ describe('ProductionService', () => {
           status: 'IN_PROGRESS',
         });
 
-        const result = await service.startProduction('po-1', 'warehouse-1', 'user-1');
+        const result = await service.startProduction(
+          'po-1',
+          'warehouse-1',
+          'user-1',
+        );
 
         expect(inventoryService.createStockMovement).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -385,6 +404,7 @@ describe('ProductionService', () => {
             quantity: 2 * 100, // item.quantity * order.quantity
           }),
           'user-1',
+          prisma, // transaction client (prisma mock is passed as tx)
         );
         expect(result.status).toBe('IN_PROGRESS');
       });
@@ -435,6 +455,7 @@ describe('ProductionService', () => {
             quantity: 50,
           }),
           'user-1',
+          prisma, // transaction client
         );
         expect(result.status).toBe('COMPLETED');
       });
@@ -458,7 +479,11 @@ describe('ProductionService', () => {
   describe('Supplier Operations', () => {
     describe('createSupplier', () => {
       it('should create a supplier', async () => {
-        const dto = { name: 'New Supplier', contact: '08123', email: 'sup@test.com' };
+        const dto = {
+          name: 'New Supplier',
+          contact: '08123',
+          email: 'sup@test.com',
+        };
         const supplier = createTestSupplier(dto);
 
         prisma.supplier.create.mockResolvedValue(supplier);
@@ -471,9 +496,7 @@ describe('ProductionService', () => {
 
     describe('getAllSuppliers', () => {
       it('should return all suppliers with order count', async () => {
-        const suppliers = [
-          { ...createTestSupplier(), _count: { orders: 3 } },
-        ];
+        const suppliers = [{ ...createTestSupplier(), _count: { orders: 3 } }];
 
         prisma.supplier.findMany.mockResolvedValue(suppliers);
 
@@ -675,6 +698,7 @@ describe('ProductionService', () => {
             quantity: 20,
           }),
           'user-1',
+          prisma, // transaction client
         );
       });
     });

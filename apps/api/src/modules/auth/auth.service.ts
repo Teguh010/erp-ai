@@ -29,24 +29,27 @@ export class AuthService {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Find or create role
-    let role = await this.prisma.role.findUnique({
-      where: { name: roleName || 'USER' },
-    });
-
-    if (!role) {
-      role = await this.prisma.role.create({
-        data: { name: roleName || 'USER' },
+    // Use interactive transaction for atomicity
+    const user = await this.prisma.$transaction(async (tx) => {
+      // Find or create role within transaction
+      let role = await tx.role.findUnique({
+        where: { name: roleName || 'USER' },
       });
-    }
 
-    const user = await this.prisma.user.create({
-      data: {
-        email,
-        passwordHash: hashedPassword,
-        fullName,
-        roleId: role.id,
-      },
+      if (!role) {
+        role = await tx.role.create({
+          data: { name: roleName || 'USER' },
+        });
+      }
+
+      return tx.user.create({
+        data: {
+          email,
+          passwordHash: hashedPassword,
+          fullName,
+          roleId: role.id,
+        },
+      });
     });
 
     const { passwordHash, ...result } = user;

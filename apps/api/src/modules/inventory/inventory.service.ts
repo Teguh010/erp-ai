@@ -15,7 +15,7 @@ import {
   StockQueryDto,
   MovementType,
 } from './dto';
-import { StockWhereInput, StockMovementWhereInput } from '../../common/interfaces';
+import { PrismaTransactionClient } from '../../common/interfaces';
 
 @Injectable()
 export class InventoryService {
@@ -192,21 +192,34 @@ export class InventoryService {
   }
 
   // ==================== STOCK MOVEMENT ====================
-  async createStockMovement(dto: CreateStockMovementDto, userId: string) {
+  /**
+   * Create stock movement with transaction support
+   * @param dto Stock movement data
+   * @param userId User performing the movement
+   * @param tx Optional transaction client for cross-service transactions
+   */
+  async createStockMovement(
+    dto: CreateStockMovementDto,
+    userId: string,
+    tx?: PrismaTransactionClient,
+  ) {
     const { productId, warehouseId, type, quantity, referenceId } = dto;
     if (!userId) {
       throw new BadRequestException('User context required for stock movement');
     }
 
+    // Use transaction client if provided, otherwise use prisma directly
+    const client = tx || this.prisma;
+
     // Get or create stock record
-    let stock = await this.prisma.stock.findUnique({
+    let stock = await client.stock.findUnique({
       where: {
         productId_warehouseId: { productId, warehouseId },
       },
     });
 
     if (!stock) {
-      stock = await this.prisma.stock.create({
+      stock = await client.stock.create({
         data: {
           productId,
           warehouseId,
@@ -233,6 +246,31 @@ export class InventoryService {
       case MovementType.ADJUSTMENT:
         newQuantity = quantity; // Direct set for adjustment
         break;
+    }
+
+    // If we have external transaction, don't wrap in another transaction
+    if (tx) {
+      const movement = await client.stockMovement.create({
+        data: {
+          product: { connect: { id: productId } },
+          warehouse: { connect: { id: warehouseId } },
+          user: { connect: { id: userId } },
+          type,
+          quantity,
+          referenceId,
+        },
+        include: {
+          product: true,
+          warehouse: true,
+        },
+      });
+
+      await client.stock.update({
+        where: { id: stock.id },
+        data: { quantity: newQuantity },
+      });
+
+      return movement;
     }
 
     // Create movement and update stock in transaction

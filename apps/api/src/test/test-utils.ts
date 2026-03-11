@@ -1,10 +1,28 @@
-import { PrismaClient, MovementType, ProductionStatus, POStatus } from '@prisma/client';
+import {
+  PrismaClient,
+  MovementType,
+  ProductionStatus,
+  POStatus,
+} from '@prisma/client';
 import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
 
 export type MockPrismaService = DeepMockProxy<PrismaClient>;
 
 export const createMockPrismaService = (): MockPrismaService => {
-  return mockDeep<PrismaClient>();
+  const mock = mockDeep<PrismaClient>();
+
+  // Configure $transaction to execute callback with the mock itself
+  // This supports both batch queries and interactive transactions
+  mock.$transaction.mockImplementation(async (arg: unknown) => {
+    if (typeof arg === 'function') {
+      // Interactive transaction: execute callback with mock as tx client
+      return arg(mock);
+    }
+    // Batch transaction: return array of query results
+    return Promise.all(arg as Promise<unknown>[]);
+  });
+
+  return mock;
 };
 
 // Factory functions for creating test data

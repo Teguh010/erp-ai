@@ -84,15 +84,17 @@ export class ProductionService {
   async updateBOM(id: string, dto: UpdateBOMDto) {
     await this.getBOMById(id);
 
-    // Delete existing items and create new ones
+    // Use transaction to atomically delete existing items and create new ones
     if (dto.items) {
-      await this.prisma.bOMItem.deleteMany({ where: { bomId: id } });
-      await this.prisma.bOMItem.createMany({
-        data: dto.items.map((item) => ({
-          bomId: id,
-          materialId: item.materialId,
-          quantity: item.quantity,
-        })),
+      await this.prisma.$transaction(async (tx) => {
+        await tx.bOMItem.deleteMany({ where: { bomId: id } });
+        await tx.bOMItem.createMany({
+          data: dto.items!.map((item) => ({
+            bomId: id,
+            materialId: item.materialId,
+            quantity: item.quantity,
+          })),
+        });
       });
     }
 
@@ -192,24 +194,28 @@ export class ProductionService {
       throw new BadRequestException('Order is not in PENDING status');
     }
 
-    // Consume materials from warehouse
-    for (const item of order.bom.items) {
-      await this.inventoryService.createStockMovement(
-        {
-          productId: item.materialId,
-          warehouseId,
-          type: MovementType.PRODUCTION_USE,
-          quantity: item.quantity * order.quantity,
-          referenceId: order.id,
-        },
-        userId,
-      );
-    }
+    // Use interactive transaction for atomic material consumption
+    return this.prisma.$transaction(async (tx) => {
+      // Consume materials from warehouse within transaction
+      for (const item of order.bom.items) {
+        await this.inventoryService.createStockMovement(
+          {
+            productId: item.materialId,
+            warehouseId,
+            type: MovementType.PRODUCTION_USE,
+            quantity: item.quantity * order.quantity,
+            referenceId: order.id,
+          },
+          userId,
+          tx,
+        );
+      }
 
-    return this.prisma.productionOrder.update({
-      where: { id: orderId },
-      data: { status: 'IN_PROGRESS' },
-      include: { bom: { include: { product: true } } },
+      return tx.productionOrder.update({
+        where: { id: orderId },
+        data: { status: 'IN_PROGRESS' },
+        include: { bom: { include: { product: true } } },
+      });
     });
   }
 
@@ -224,25 +230,29 @@ export class ProductionService {
       throw new BadRequestException('Order is not in IN_PROGRESS status');
     }
 
-    // Add finished product to warehouse
-    await this.inventoryService.createStockMovement(
-      {
-        productId: order.bom.productId,
-        warehouseId,
-        type: MovementType.PRODUCTION_FINISH,
-        quantity: order.quantity,
-        referenceId: order.id,
-      },
-      userId,
-    );
+    // Use interactive transaction for atomic product addition
+    return this.prisma.$transaction(async (tx) => {
+      // Add finished product to warehouse within transaction
+      await this.inventoryService.createStockMovement(
+        {
+          productId: order.bom.productId,
+          warehouseId,
+          type: MovementType.PRODUCTION_FINISH,
+          quantity: order.quantity,
+          referenceId: order.id,
+        },
+        userId,
+        tx,
+      );
 
-    return this.prisma.productionOrder.update({
-      where: { id: orderId },
-      data: {
-        status: 'COMPLETED',
-        completedDate: new Date(),
-      },
-      include: { bom: { include: { product: true } } },
+      return tx.productionOrder.update({
+        where: { id: orderId },
+        data: {
+          status: 'COMPLETED',
+          completedDate: new Date(),
+        },
+        include: { bom: { include: { product: true } } },
+      });
     });
   }
 
@@ -335,20 +345,29 @@ export class ProductionService {
   ) {
     const po = await this.getPurchaseOrderById(id);
 
-    // If receiving goods, create stock movements
+    // If receiving goods, use transaction for atomic stock updates
     if (dto.status === POStatus.RECEIVED && warehouseId && userId) {
-      for (const item of po.items) {
-        await this.inventoryService.createStockMovement(
-          {
-            productId: item.productId,
-            warehouseId,
-            type: MovementType.INBOUND,
-            quantity: item.quantity,
-            referenceId: po.id,
-          },
-          userId,
-        );
-      }
+      return this.prisma.$transaction(async (tx) => {
+        for (const item of po.items) {
+          await this.inventoryService.createStockMovement(
+            {
+              productId: item.productId,
+              warehouseId,
+              type: MovementType.INBOUND,
+              quantity: item.quantity,
+              referenceId: po.id,
+            },
+            userId,
+            tx,
+          );
+        }
+
+        return tx.purchaseOrder.update({
+          where: { id },
+          data: { status: dto.status },
+          include: { supplier: true, items: { include: { product: true } } },
+        });
+      });
     }
 
     return this.prisma.purchaseOrder.update({
