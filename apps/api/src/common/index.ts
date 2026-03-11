@@ -13,3 +13,6 @@ export * from './interceptors/logging.interceptor';
 
 // Pipes
 export * from './pipes/validation.pipe';
+
+// Interfaces
+export * from './interfaces';

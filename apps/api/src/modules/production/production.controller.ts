@@ -27,6 +27,7 @@ import {
 } from './dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import type { AuthenticatedRequest } from '../../common/interfaces';
 
 @ApiTags('Production')
 @ApiBearerAuth('JWT-auth')
@@ -112,7 +113,7 @@ export class ProductionController {
   startProduction(
     @Param('id') id: string,
     @Body('warehouseId') warehouseId: string,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
   ) {
     return this.productionService.startProduction(
       id,
@@ -127,7 +128,7 @@ export class ProductionController {
   completeProduction(
     @Param('id') id: string,
     @Body('warehouseId') warehouseId: string,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
   ) {
     return this.productionService.completeProduction(
       id,
@@ -197,7 +198,7 @@ export class ProductionController {
     @Param('id') id: string,
     @Body() dto: UpdatePurchaseOrderStatusDto,
     @Query('warehouseId') warehouseId: string | undefined,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
   ) {
     return this.productionService.updatePurchaseOrderStatus(
       id,

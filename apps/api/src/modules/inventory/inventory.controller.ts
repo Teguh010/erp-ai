@@ -25,6 +25,7 @@ import {
 } from './dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import type { AuthenticatedRequest } from '../../common/interfaces';
 
 @ApiTags('Inventory')
 @ApiBearerAuth('JWT-auth')
@@ -141,7 +142,7 @@ export class InventoryController {
   @Roles('ADMIN', 'WAREHOUSE_MANAGER')
   createStockMovement(
     @Body() dto: CreateStockMovementDto,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
   ) {
     return this.inventoryService.createStockMovement(dto, req.user.sub);
   }

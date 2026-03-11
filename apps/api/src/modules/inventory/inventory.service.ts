@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import {
   CreateWarehouseDto,
@@ -14,6 +15,7 @@ import {
   StockQueryDto,
   MovementType,
 } from './dto';
+import { StockWhereInput, StockMovementWhereInput } from '../../common/interfaces';
 
 @Injectable()
 export class InventoryService {
@@ -146,7 +148,7 @@ export class InventoryService {
     const { warehouseId, productId, page = 1, limit = 20 } = query;
     const skip = (page - 1) * limit;
 
-    const where: any = {};
+    const where: Prisma.StockWhereInput = {};
     if (warehouseId) where.warehouseId = warehouseId;
     if (productId) where.productId = productId;
 
@@ -259,7 +261,7 @@ export class InventoryService {
   }
 
   async getStockMovements(productId?: string, warehouseId?: string) {
-    const where: any = {};
+    const where: Prisma.StockMovementWhereInput = {};
     if (productId) where.productId = productId;
     if (warehouseId) where.warehouseId = warehouseId;
 

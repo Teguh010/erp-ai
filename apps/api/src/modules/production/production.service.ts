@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { InventoryService } from '../inventory/inventory.service';
 import {
@@ -167,7 +168,7 @@ export class ProductionService {
   async updateProductionOrder(id: string, dto: UpdateProductionOrderDto) {
     await this.getProductionOrderById(id);
 
-    const data: any = { ...dto };
+    const data: Prisma.ProductionOrderUpdateInput = { ...dto };
     if (dto.scheduledDate) {
       data.scheduledDate = new Date(dto.scheduledDate);
     }
@@ -372,7 +373,7 @@ export class ProductionService {
   }
 
   async getAllPackagingReports(params?: { from?: string; to?: string }) {
-    const where: any = {};
+    const where: Prisma.PackagingReportWhereInput = {};
     if (params?.from || params?.to) {
       where.date = {};
       if (params.from) where.date.gte = new Date(params.from);
@@ -394,7 +395,7 @@ export class ProductionService {
 
   async updatePackagingReport(id: string, dto: UpdatePackagingReportDto) {
     await this.getPackagingReportById(id);
-    const data: any = { ...dto };
+    const data: Prisma.PackagingReportUpdateInput = { ...dto };
     if (dto.date) data.date = new Date(dto.date);
     return this.prisma.packagingReport.update({
       where: { id },

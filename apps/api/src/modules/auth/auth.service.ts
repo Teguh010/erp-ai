@@ -1,6 +1,8 @@
 import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../database/prisma.service';
+import { RegisterDto } from './dto';
+import { JwtPayload, UserWithRole } from '../../common/interfaces';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -10,7 +12,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  async register(data: any) {
+  async register(data: RegisterDto) {
     const { email, password, fullName, roleName } = data;
 
     const existingUser = await this.prisma.user.findUnique({
@@ -75,7 +77,7 @@ export class AuthService {
     };
   }
 
-  async validateUser(payload: any) {
+  async validateUser(payload: JwtPayload): Promise<UserWithRole | null> {
     return this.prisma.user.findUnique({
       where: { id: payload.sub },
       include: { role: true },
