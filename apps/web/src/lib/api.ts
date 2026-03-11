@@ -162,10 +162,9 @@ class ApiClient {
   async createStockMovement(data: {
     productId: string;
     warehouseId: string;
-    movementType: 'IN' | 'OUT' | 'ADJUSTMENT';
+    type: 'INBOUND' | 'OUTBOUND' | 'ADJUSTMENT' | 'PRODUCTION_USE' | 'PRODUCTION_FINISH';
     quantity: number;
-    reference?: string;
-    notes?: string;
+    referenceId?: string;
   }) {
     const response = await this.client.post('/inventory/movements', data);
     return response.data;

@@ -192,6 +192,9 @@ export class InventoryService {
   // ==================== STOCK MOVEMENT ====================
   async createStockMovement(dto: CreateStockMovementDto, userId: string) {
     const { productId, warehouseId, type, quantity, referenceId } = dto;
+    if (!userId) {
+      throw new BadRequestException('User context required for stock movement');
+    }
 
     // Get or create stock record
     let stock = await this.prisma.stock.findUnique({
@@ -234,12 +237,12 @@ export class InventoryService {
     const [movement] = await this.prisma.$transaction([
       this.prisma.stockMovement.create({
         data: {
-          productId,
-          warehouseId,
+          product: { connect: { id: productId } },
+          warehouse: { connect: { id: warehouseId } },
+          user: { connect: { id: userId } },
           type,
           quantity,
           referenceId,
-          userId,
         },
         include: {
           product: true,

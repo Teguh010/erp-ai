@@ -29,10 +29,9 @@ export default function MovementsPage() {
   const [formData, setFormData] = useState({
     productId: '',
     warehouseId: '',
-    movementType: 'IN',
+    movementType: 'INBOUND',
     quantity: '',
-    reference: '',
-    notes: '',
+    referenceId: '',
   });
 
   const { data: movementsData, isLoading } = useQuery({
@@ -73,10 +72,9 @@ export default function MovementsPage() {
       setFormData({
         productId: '',
         warehouseId: '',
-        movementType: 'IN',
+        movementType: 'INBOUND',
         quantity: '',
-        reference: '',
-        notes: '',
+        referenceId: '',
       });
     },
   });
@@ -84,16 +82,21 @@ export default function MovementsPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     createMutation.mutate({
-      ...formData,
-      quantity: parseInt(formData.quantity),
+      productId: formData.productId,
+      warehouseId: formData.warehouseId,
+      type: formData.movementType,
+      quantity: parseInt(formData.quantity, 10),
+      referenceId: formData.referenceId || undefined,
     });
   };
 
   const getMovementIcon = (type: string) => {
     switch (type) {
-      case 'IN':
+      case 'INBOUND':
+      case 'PRODUCTION_FINISH':
         return <ArrowDownRight className="w-4 h-4 text-green-600" />;
-      case 'OUT':
+      case 'OUTBOUND':
+      case 'PRODUCTION_USE':
         return <ArrowUpRight className="w-4 h-4 text-red-600" />;
       default:
         return <RefreshCw className="w-4 h-4 text-yellow-600" />;
@@ -102,12 +105,20 @@ export default function MovementsPage() {
 
   const getMovementBadge = (type: string) => {
     const variants: Record<string, 'success' | 'danger' | 'warning' | 'info'> = {
-      IN: 'success',
-      OUT: 'danger',
+      INBOUND: 'success',
+      OUTBOUND: 'danger',
       ADJUSTMENT: 'warning',
-      TRANSFER: 'info',
+      PRODUCTION_USE: 'danger',
+      PRODUCTION_FINISH: 'success',
     };
-    return <Badge variant={variants[type] || 'default'}>{type}</Badge>;
+    const labels: Record<string, string> = {
+      INBOUND: 'In',
+      OUTBOUND: 'Out',
+      ADJUSTMENT: 'Adjustment',
+      PRODUCTION_USE: 'Prod Use',
+      PRODUCTION_FINISH: 'Prod Finish',
+    };
+    return <Badge variant={variants[type] || 'default'}>{labels[type] || type}</Badge>;
   };
 
   return (
@@ -161,42 +172,41 @@ export default function MovementsPage() {
                   <TableHead>Warehouse</TableHead>
                   <TableHead className="text-right">Quantity</TableHead>
                   <TableHead>Reference</TableHead>
-                  <TableHead>Notes</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {movements.map((movement: any) => (
-                  <TableRow key={movement.id}>
-                    <TableCell className="text-sm">
-                      {formatDateTime(movement.createdAt)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {getMovementIcon(movement.movementType)}
-                        {getMovementBadge(movement.movementType)}
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-medium">{movement.product?.name}</TableCell>
-                    <TableCell>{movement.warehouse?.name}</TableCell>
-                    <TableCell
-                      className={`text-right font-semibold ${
-                        movement.movementType === 'IN' ? 'text-green-600' : 'text-red-600'
-                      }`}
-                    >
-                      {movement.movementType === 'IN' ? '+' : '-'}
-                      {movement.quantity}
-                    </TableCell>
-                    <TableCell className="text-sm text-gray-500">
-                      {movement.reference || '-'}
-                    </TableCell>
-                    <TableCell className="text-sm text-gray-500 max-w-xs truncate">
-                      {movement.notes || '-'}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {movements.map((movement: any) => {
+                  const isIn = movement.type === 'INBOUND' || movement.type === 'PRODUCTION_FINISH';
+                  return (
+                    <TableRow key={movement.id}>
+                      <TableCell className="text-sm">
+                        {formatDateTime(movement.createdAt)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {getMovementIcon(movement.type)}
+                          {getMovementBadge(movement.type)}
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-medium">{movement.product?.name}</TableCell>
+                      <TableCell>{movement.warehouse?.name}</TableCell>
+                      <TableCell
+                        className={`text-right font-semibold ${
+                          isIn ? 'text-green-600' : 'text-red-600'
+                        }`}
+                      >
+                        {isIn ? '+' : '-'}
+                        {movement.quantity}
+                      </TableCell>
+                      <TableCell className="text-sm text-gray-500">
+                        {movement.referenceId || '-'}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
                 {movements.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-gray-500 py-8">
+                    <TableCell colSpan={6} className="text-center text-gray-500 py-8">
                       No movements found
                     </TableCell>
                   </TableRow>
@@ -243,8 +253,8 @@ export default function MovementsPage() {
               value={formData.movementType}
               onChange={(e) => setFormData({ ...formData, movementType: e.target.value })}
               options={[
-                { value: 'IN', label: 'Stock In' },
-                { value: 'OUT', label: 'Stock Out' },
+                { value: 'INBOUND', label: 'Stock In' },
+                { value: 'OUTBOUND', label: 'Stock Out' },
                 { value: 'ADJUSTMENT', label: 'Adjustment' },
               ]}
               required
@@ -260,15 +270,9 @@ export default function MovementsPage() {
           </div>
           <Input
             label="Reference"
-            value={formData.reference}
-            onChange={(e) => setFormData({ ...formData, reference: e.target.value })}
+            value={formData.referenceId}
+            onChange={(e) => setFormData({ ...formData, referenceId: e.target.value })}
             placeholder="PO-001, SO-001, etc."
-          />
-          <Input
-            label="Notes"
-            value={formData.notes}
-            onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-            placeholder="Additional notes..."
           />
           <div className="flex justify-end gap-3 pt-4">
             <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
