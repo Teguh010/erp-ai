@@ -1,8 +1,14 @@
-import { Controller, Post, Body, Get, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
-  ApiBody,
   ApiBearerAuth,
   ApiResponse,
 } from '@nestjs/swagger';
@@ -26,7 +32,11 @@ export class AuthController {
 
   @Post('login')
   @ApiOperation({ summary: 'Login and get JWT token' })
-  @ApiResponse({ status: 201, description: 'Login successful', type: AuthResponseDto })
+  @ApiResponse({
+    status: 201,
+    description: 'Login successful',
+    type: AuthResponseDto,
+  })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
   async login(@Body() dto: LoginDto) {
     return this.authService.login(dto.email, dto.password);
@@ -36,7 +46,11 @@ export class AuthController {
   @Get('profile')
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Get current user profile' })
-  @ApiResponse({ status: 200, description: 'User profile', type: UserResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: 'User profile',
+    type: UserResponseDto,
+  })
   getProfile(@Request() req: AuthenticatedRequest) {
     return req.user;
   }
