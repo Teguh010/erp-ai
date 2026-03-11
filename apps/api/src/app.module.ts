@@ -9,6 +9,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { ProductionModule } from './modules/production/production.module';
 import { AiAgentModule } from './modules/ai-agent/ai-agent.module';
+import { HealthModule } from './modules/health/health.module';
 // import { NotificationsModule } from './modules/notifications/notifications.module';
 // Note: NotificationsModule requires Redis. Uncomment when Redis is available.
 
@@ -40,6 +41,7 @@ import { AiAgentModule } from './modules/ai-agent/ai-agent.module';
       }),
     }),
     DatabaseModule,
+    HealthModule,
     AuthModule,
     InventoryModule,
     ProductionModule,

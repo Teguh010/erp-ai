@@ -28,6 +28,10 @@ model User {
 
   stockMovements StockMovement[]
   auditLogs      AuditLog[]
+
+  @@index([roleId])
+  @@index([isActive])
+  @@index([createdAt])
 }
 
 model Role {
@@ -56,6 +60,10 @@ model Product {
   bomItemsAsMaterial BOMItem[]
   purchaseItems PurchaseOrderItem[]
   salesItems    SalesOrderItem[]
+
+  @@index([categoryId])
+  @@index([name])
+  @@index([minStockLevel])
 }
 
 model Category {
@@ -70,6 +78,8 @@ model Warehouse {
   location  String
   stocks    Stock[]
   movements StockMovement[]
+
+  @@index([name])
 }
 
 // --- INVENTORY ---
@@ -85,6 +95,9 @@ model Stock {
   warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
 
   @@unique([productId, warehouseId])
+  @@index([productId])
+  @@index([warehouseId])
+  @@index([quantity])
 }
 
 model StockMovement {
@@ -100,6 +113,13 @@ model StockMovement {
   product     Product   @relation(fields: [productId], references: [id])
   warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
   user        User      @relation(fields: [userId], references: [id])
+
+  @@index([productId])
+  @@index([warehouseId])
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
+  @@index([referenceId])
 }
 
 enum MovementType {
@@ -117,6 +137,9 @@ model Supplier {
   contact   String
   email     String
   orders    PurchaseOrder[]
+
+  @@index([name])
+  @@index([email])
 }
 
 model PurchaseOrder {
@@ -128,6 +151,10 @@ model PurchaseOrder {
 
   supplier    Supplier @relation(fields: [supplierId], references: [id])
   items       PurchaseOrderItem[]
+
+  @@index([supplierId])
+  @@index([status])
+  @@index([createdAt])
 }
 
 enum POStatus {
@@ -146,6 +173,9 @@ model PurchaseOrderItem {
 
   order           PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
   product         Product       @relation(fields: [productId], references: [id])
+
+  @@index([purchaseOrderId])
+  @@index([productId])
 }
 
 model BillOfMaterials {
@@ -164,6 +194,9 @@ model BOMItem {
 
   bom         BillOfMaterials @relation(fields: [bomId], references: [id])
   material    Product         @relation(fields: [materialId], references: [id])
+
+  @@index([bomId])
+  @@index([materialId])
 }
 
 // --- PRODUCTION ORDERS ---
@@ -178,6 +211,11 @@ model ProductionOrder {
   updatedAt     DateTime @updatedAt
 
   bom           BillOfMaterials @relation(fields: [bomId], references: [id])
+
+  @@index([bomId])
+  @@index([status])
+  @@index([scheduledDate])
+  @@index([createdAt])
 }
 
 // --- LAPORAN PACKAGING (aktivitas produksi: tenaga, hasil, HPP) ---
@@ -191,6 +229,9 @@ model PackagingReport {
   hpp              Float    @default(0)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+
+  @@index([date])
+  @@index([aktivitas])
 }
 
 enum ProductionStatus {
@@ -209,6 +250,9 @@ model Customer {
   createdAt DateTime @default(now())
 
   salesOrders SalesOrder[]
+
+  @@index([name])
+  @@index([email])
 }
 
 model SalesOrder {
@@ -220,6 +264,10 @@ model SalesOrder {
 
   customer Customer        @relation(fields: [customerId], references: [id])
   items    SalesOrderItem[]
+
+  @@index([customerId])
+  @@index([status])
+  @@index([createdAt])
 }
 
 model SalesOrderItem {
@@ -231,6 +279,9 @@ model SalesOrderItem {
 
   salesOrder SalesOrder @relation(fields: [salesOrderId], references: [id])
   product    Product    @relation(fields: [productId], references: [id])
+
+  @@index([salesOrderId])
+  @@index([productId])
 }
 
 // --- SYSTEM LOGS & AI ---
@@ -244,6 +295,11 @@ model AuditLog {
   newData   Json?
   timestamp DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([entity, entityId])
+  @@index([action])
+  @@index([timestamp])
 }
 
 model AIDocument {
@@ -253,6 +309,9 @@ model AIDocument {
   metadata    Json?
   createdAt   DateTime @default(now())
   chunks      AIDocumentChunk[]
+
+  @@index([title])
+  @@index([createdAt])
 }
 
 model AIDocumentChunk {
@@ -264,4 +323,7 @@ model AIDocumentChunk {
   createdAt   DateTime @default(now())
 
   document    AIDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+  @@index([chunkIndex])
 }
