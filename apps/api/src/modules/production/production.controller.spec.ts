@@ -78,7 +78,9 @@ describe('ProductionController', () => {
     });
 
     it('should get all BOMs', async () => {
-      const boms = [{ ...createTestBOM(), product: createTestProduct(), items: [] }];
+      const boms = [
+        { ...createTestBOM(), product: createTestProduct(), items: [] },
+      ];
       productionService.getAllBOMs.mockResolvedValue(boms);
 
       const result = await controller.getAllBOMs();
@@ -117,7 +119,10 @@ describe('ProductionController', () => {
     });
 
     it('should delete BOM', async () => {
-      productionService.deleteBOM.mockResolvedValue({ id: 'bom-1', deleted: true });
+      productionService.deleteBOM.mockResolvedValue({
+        id: 'bom-1',
+        deleted: true,
+      });
 
       const result = await controller.deleteBOM('bom-1');
 
@@ -203,7 +208,11 @@ describe('ProductionController', () => {
       const req = { user: { sub: 'user-1' } };
       productionService.startProduction.mockResolvedValue(order);
 
-      const result = await controller.startProduction('po-1', 'warehouse-1', req);
+      const result = await controller.startProduction(
+        'po-1',
+        'warehouse-1',
+        req,
+      );
 
       expect(productionService.startProduction).toHaveBeenCalledWith(
         'po-1',
@@ -221,7 +230,11 @@ describe('ProductionController', () => {
       const req = { user: { sub: 'user-1' } };
       productionService.completeProduction.mockResolvedValue(order);
 
-      const result = await controller.completeProduction('po-1', 'warehouse-1', req);
+      const result = await controller.completeProduction(
+        'po-1',
+        'warehouse-1',
+        req,
+      );
 
       expect(productionService.completeProduction).toHaveBeenCalledWith(
         'po-1',
