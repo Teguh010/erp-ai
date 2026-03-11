@@ -5,6 +5,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { DatabaseModule } from './database/database.module';
+import { CacheModule } from './modules/cache/cache.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { ProductionModule } from './modules/production/production.module';
@@ -41,6 +42,7 @@ import { HealthModule } from './modules/health/health.module';
       }),
     }),
     DatabaseModule,
+    CacheModule,
     HealthModule,
     AuthModule,
     InventoryModule,

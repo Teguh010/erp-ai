@@ -17,131 +17,197 @@ import {
   ProductNotFoundException,
   InsufficientStockException,
 } from '../../common/exceptions';
+import {
+  CacheService,
+  CachePrefix,
+  CacheTTL,
+} from '../cache/cache.service';
 
 @Injectable()
 export class InventoryService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
+  ) {}
 
   // ==================== WAREHOUSE ====================
   async createWarehouse(dto: CreateWarehouseDto) {
-    return this.prisma.warehouse.create({ data: dto });
+    const warehouse = await this.prisma.warehouse.create({ data: dto });
+    await this.cache.delByPrefix(CachePrefix.WAREHOUSES_LIST);
+    return warehouse;
   }
 
   async getAllWarehouses() {
-    return this.prisma.warehouse.findMany({
-      include: {
-        _count: { select: { stocks: true } },
+    return this.cache.getOrSet(
+      CachePrefix.WAREHOUSES_LIST,
+      async () => {
+        return this.prisma.warehouse.findMany({
+          include: {
+            _count: { select: { stocks: true } },
+          },
+        });
       },
-    });
+      CacheTTL.LONG,
+    );
   }
 
   async getWarehouseById(id: string) {
-    const warehouse = await this.prisma.warehouse.findUnique({
-      where: { id },
-      include: {
-        stocks: {
-          include: { product: true },
-        },
+    const cacheKey = `${CachePrefix.WAREHOUSE}${id}`;
+
+    const warehouse = await this.cache.getOrSet(
+      cacheKey,
+      async () => {
+        return this.prisma.warehouse.findUnique({
+          where: { id },
+          include: {
+            stocks: {
+              include: { product: true },
+            },
+          },
+        });
       },
-    });
+      CacheTTL.MEDIUM,
+    );
+
     if (!warehouse) throw new WarehouseNotFoundException(id);
     return warehouse;
   }
 
   async updateWarehouse(id: string, dto: UpdateWarehouseDto) {
     await this.getWarehouseById(id);
-    return this.prisma.warehouse.update({ where: { id }, data: dto });
+    const warehouse = await this.prisma.warehouse.update({
+      where: { id },
+      data: dto,
+    });
+    await this.cache.invalidateWarehouse(id);
+    return warehouse;
   }
 
   async deleteWarehouse(id: string) {
     await this.getWarehouseById(id);
-    return this.prisma.warehouse.delete({ where: { id } });
+    const warehouse = await this.prisma.warehouse.delete({ where: { id } });
+    await this.cache.invalidateWarehouse(id);
+    return warehouse;
   }
 
   // ==================== CATEGORY ====================
   async createCategory(dto: CreateCategoryDto) {
-    return this.prisma.category.create({ data: dto });
+    const category = await this.prisma.category.create({ data: dto });
+    await this.cache.del(CachePrefix.CATEGORIES_LIST);
+    return category;
   }
 
   async getAllCategories() {
-    return this.prisma.category.findMany({
-      include: { _count: { select: { products: true } } },
-    });
+    return this.cache.getOrSet(
+      CachePrefix.CATEGORIES_LIST,
+      async () => {
+        return this.prisma.category.findMany({
+          include: { _count: { select: { products: true } } },
+        });
+      },
+      CacheTTL.LONG,
+    );
   }
 
   // ==================== PRODUCT ====================
   async createProduct(dto: CreateProductDto) {
-    return this.prisma.product.create({
+    const product = await this.prisma.product.create({
       data: dto,
       include: { category: true },
     });
+    await this.cache.delByPrefix(CachePrefix.PRODUCTS_LIST);
+    return product;
   }
 
   async getAllProducts(query: StockQueryDto) {
     const { page = 1, limit = 20, search } = query;
     const skip = (page - 1) * limit;
+    const cacheKey = `${CachePrefix.PRODUCTS_LIST}${page}:${limit}:${search || ''}`;
 
-    const where = search?.trim()
-      ? {
-          OR: [
-            { name: { contains: search.trim(), mode: 'insensitive' as const } },
-            { sku: { contains: search.trim(), mode: 'insensitive' as const } },
-          ],
-        }
-      : undefined;
+    return this.cache.getOrSet(
+      cacheKey,
+      async () => {
+        const where = search?.trim()
+          ? {
+              OR: [
+                {
+                  name: { contains: search.trim(), mode: 'insensitive' as const },
+                },
+                {
+                  sku: { contains: search.trim(), mode: 'insensitive' as const },
+                },
+              ],
+            }
+          : undefined;
 
-    const [products, total] = await Promise.all([
-      this.prisma.product.findMany({
-        where,
-        skip,
-        take: limit,
-        include: {
-          category: true,
-          stocks: {
-            include: { warehouse: true },
+        const [products, total] = await Promise.all([
+          this.prisma.product.findMany({
+            where,
+            skip,
+            take: limit,
+            include: {
+              category: true,
+              stocks: {
+                include: { warehouse: true },
+              },
+            },
+            orderBy: { name: 'asc' },
+          }),
+          this.prisma.product.count({ where }),
+        ]);
+
+        return {
+          data: products,
+          meta: {
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit),
           },
-        },
-        orderBy: { name: 'asc' },
-      }),
-      this.prisma.product.count({ where }),
-    ]);
-
-    return {
-      data: products,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
+        };
       },
-    };
+      CacheTTL.SHORT, // Short TTL for paginated lists
+    );
   }
 
   async getProductById(id: string) {
-    const product = await this.prisma.product.findUnique({
-      where: { id },
-      include: {
-        category: true,
-        stocks: { include: { warehouse: true } },
-        bom: { include: { items: true } },
+    const cacheKey = `${CachePrefix.PRODUCT}${id}`;
+
+    const product = await this.cache.getOrSet(
+      cacheKey,
+      async () => {
+        return this.prisma.product.findUnique({
+          where: { id },
+          include: {
+            category: true,
+            stocks: { include: { warehouse: true } },
+            bom: { include: { items: true } },
+          },
+        });
       },
-    });
+      CacheTTL.MEDIUM,
+    );
+
     if (!product) throw new ProductNotFoundException(id);
     return product;
   }
 
   async updateProduct(id: string, dto: UpdateProductDto) {
     await this.getProductById(id);
-    return this.prisma.product.update({
+    const product = await this.prisma.product.update({
       where: { id },
       data: dto,
       include: { category: true },
     });
+    await this.cache.invalidateProduct(id);
+    return product;
   }
 
   async deleteProduct(id: string) {
     await this.getProductById(id);
-    return this.prisma.product.delete({ where: { id } });
+    const product = await this.prisma.product.delete({ where: { id } });
+    await this.cache.invalidateProduct(id);
+    return product;
   }
 
   // ==================== STOCK ====================
