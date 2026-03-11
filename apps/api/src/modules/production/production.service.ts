@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { InventoryService } from '../inventory/inventory.service';
@@ -21,6 +17,14 @@ import {
   UpdatePackagingReportDto,
 } from './dto';
 import { MovementType } from '../inventory/dto';
+import {
+  BOMExistsException,
+  BOMNotFoundException,
+  ProductionOrderNotFoundException,
+  InvalidProductionStatusException,
+  SupplierNotFoundException,
+  PurchaseOrderNotFoundException,
+} from '../../common/exceptions';
 
 @Injectable()
 export class ProductionService {
@@ -38,7 +42,7 @@ export class ProductionService {
       where: { productId },
     });
     if (existing) {
-      throw new BadRequestException('Product already has a BOM');
+      throw new BOMExistsException(productId);
     }
 
     return this.prisma.billOfMaterials.create({
@@ -77,7 +81,7 @@ export class ProductionService {
         productionOrders: true,
       },
     });
-    if (!bom) throw new NotFoundException('BOM not found');
+    if (!bom) throw new BOMNotFoundException(id);
     return bom;
   }
 
@@ -163,7 +167,7 @@ export class ProductionService {
         },
       },
     });
-    if (!order) throw new NotFoundException('Production order not found');
+    if (!order) throw new ProductionOrderNotFoundException(id);
     return order;
   }
 
@@ -191,7 +195,11 @@ export class ProductionService {
     const order = await this.getProductionOrderById(orderId);
 
     if (order.status !== 'PENDING') {
-      throw new BadRequestException('Order is not in PENDING status');
+      throw new InvalidProductionStatusException(
+        order.status,
+        'PENDING',
+        'start production',
+      );
     }
 
     // Use interactive transaction for atomic material consumption
@@ -227,7 +235,11 @@ export class ProductionService {
     const order = await this.getProductionOrderById(orderId);
 
     if (order.status !== 'IN_PROGRESS') {
-      throw new BadRequestException('Order is not in IN_PROGRESS status');
+      throw new InvalidProductionStatusException(
+        order.status,
+        'IN_PROGRESS',
+        'complete production',
+      );
     }
 
     // Use interactive transaction for atomic product addition
@@ -272,7 +284,7 @@ export class ProductionService {
       where: { id },
       include: { orders: true },
     });
-    if (!supplier) throw new NotFoundException('Supplier not found');
+    if (!supplier) throw new SupplierNotFoundException(id);
     return supplier;
   }
 
@@ -333,7 +345,7 @@ export class ProductionService {
         items: { include: { product: true } },
       },
     });
-    if (!po) throw new NotFoundException('Purchase order not found');
+    if (!po) throw new PurchaseOrderNotFoundException(id);
     return po;
   }
 

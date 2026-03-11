@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import {
@@ -16,6 +12,11 @@ import {
   MovementType,
 } from './dto';
 import { PrismaTransactionClient } from '../../common/interfaces';
+import {
+  WarehouseNotFoundException,
+  ProductNotFoundException,
+  InsufficientStockException,
+} from '../../common/exceptions';
 
 @Injectable()
 export class InventoryService {
@@ -43,7 +44,7 @@ export class InventoryService {
         },
       },
     });
-    if (!warehouse) throw new NotFoundException('Warehouse not found');
+    if (!warehouse) throw new WarehouseNotFoundException(id);
     return warehouse;
   }
 
@@ -125,7 +126,7 @@ export class InventoryService {
         bom: { include: { items: true } },
       },
     });
-    if (!product) throw new NotFoundException('Product not found');
+    if (!product) throw new ProductNotFoundException(id);
     return product;
   }
 
@@ -239,7 +240,12 @@ export class InventoryService {
       case MovementType.OUTBOUND:
       case MovementType.PRODUCTION_USE:
         if (stock.quantity < quantity) {
-          throw new BadRequestException('Insufficient stock');
+          throw new InsufficientStockException(
+            productId,
+            stock.quantity,
+            quantity,
+            warehouseId,
+          );
         }
         newQuantity -= quantity;
         break;

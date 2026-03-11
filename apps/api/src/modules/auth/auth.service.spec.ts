@@ -1,6 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
-import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../../database/prisma.service';
 import {
@@ -9,6 +8,10 @@ import {
   createTestRole,
 } from '../../test/test-utils';
 import { JwtPayload } from '../../common/interfaces';
+import {
+  EmailExistsException,
+  InvalidCredentialsException,
+} from '../../common/exceptions';
 import * as bcrypt from 'bcrypt';
 
 // Mock bcrypt
@@ -86,15 +89,12 @@ describe('AuthService', () => {
       expect(result.email).toBe(registerDto.email);
     });
 
-    it('should throw ConflictException if email already exists', async () => {
+    it('should throw EmailExistsException if email already exists', async () => {
       const existingUser = createTestUser({ email: registerDto.email });
       prisma.user.findUnique.mockResolvedValue(existingUser);
 
       await expect(service.register(registerDto)).rejects.toThrow(
-        ConflictException,
-      );
-      await expect(service.register(registerDto)).rejects.toThrow(
-        'Email already exists',
+        EmailExistsException,
       );
     });
 
@@ -169,25 +169,25 @@ describe('AuthService', () => {
       });
     });
 
-    it('should throw UnauthorizedException if user not found', async () => {
+    it('should throw InvalidCredentialsException if user not found', async () => {
       prisma.user.findUnique.mockResolvedValue(null);
 
       await expect(
         service.login(loginCredentials.email, loginCredentials.password),
-      ).rejects.toThrow(UnauthorizedException);
+      ).rejects.toThrow(InvalidCredentialsException);
     });
 
-    it('should throw UnauthorizedException if password is incorrect', async () => {
+    it('should throw InvalidCredentialsException if password is incorrect', async () => {
       const user = createTestUser({ email: loginCredentials.email });
-      prisma.user.findUnique.mockResolvedValue({ ...user, role: createTestRole() });
+      prisma.user.findUnique.mockResolvedValue({
+        ...user,
+        role: createTestRole(),
+      });
       (bcrypt.compare as jest.Mock).mockResolvedValue(false);
 
       await expect(
         service.login(loginCredentials.email, 'wrong_password'),
-      ).rejects.toThrow(UnauthorizedException);
-      await expect(
-        service.login(loginCredentials.email, 'wrong_password'),
-      ).rejects.toThrow('Invalid credentials');
+      ).rejects.toThrow(InvalidCredentialsException);
     });
 
     it('should update lastLogin timestamp on successful login', async () => {

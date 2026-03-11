@@ -16,3 +16,6 @@ export * from './pipes/validation.pipe';
 
 // Interfaces
 export * from './interfaces';
+
+// Exceptions
+export * from './exceptions';

@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { NotFoundException } from '@nestjs/common';
 import { ProductionService } from './production.service';
 import { PrismaService } from '../../database/prisma.service';
 import { InventoryService } from '../inventory/inventory.service';
@@ -12,6 +12,14 @@ import {
   createTestPurchaseOrder,
 } from '../../test/test-utils';
 import { ProductionStatus, POStatus } from './dto';
+import {
+  BOMExistsException,
+  BOMNotFoundException,
+  ProductionOrderNotFoundException,
+  InvalidProductionStatusException,
+  SupplierNotFoundException,
+  PurchaseOrderNotFoundException,
+} from '../../common/exceptions';
 
 describe('ProductionService', () => {
   let service: ProductionService;
@@ -84,7 +92,7 @@ describe('ProductionService', () => {
         expect(result.items).toHaveLength(2);
       });
 
-      it('should throw BadRequestException if product already has BOM', async () => {
+      it('should throw BOMExistsException if product already has BOM', async () => {
         const existingBOM = createTestBOM();
         prisma.billOfMaterials.findUnique.mockResolvedValue(existingBOM);
 
@@ -94,10 +102,7 @@ describe('ProductionService', () => {
         };
 
         await expect(service.createBOM(dto)).rejects.toThrow(
-          BadRequestException,
-        );
-        await expect(service.createBOM(dto)).rejects.toThrow(
-          'Product already has a BOM',
+          BOMExistsException,
         );
       });
     });
@@ -153,11 +158,11 @@ describe('ProductionService', () => {
         expect(result.items).toHaveLength(1);
       });
 
-      it('should throw NotFoundException if BOM not found', async () => {
+      it('should throw BOMNotFoundException if BOM not found', async () => {
         prisma.billOfMaterials.findUnique.mockResolvedValue(null);
 
         await expect(service.getBOMById('non-existent')).rejects.toThrow(
-          NotFoundException,
+          BOMNotFoundException,
         );
       });
     });
@@ -313,12 +318,12 @@ describe('ProductionService', () => {
         expect(result.bom).toBeDefined();
       });
 
-      it('should throw NotFoundException if order not found', async () => {
+      it('should throw ProductionOrderNotFoundException if order not found', async () => {
         prisma.productionOrder.findUnique.mockResolvedValue(null);
 
         await expect(
           service.getProductionOrderById('non-existent'),
-        ).rejects.toThrow(NotFoundException);
+        ).rejects.toThrow(ProductionOrderNotFoundException);
       });
     });
 
@@ -409,7 +414,7 @@ describe('ProductionService', () => {
         expect(result.status).toBe('IN_PROGRESS');
       });
 
-      it('should throw BadRequestException if order not PENDING', async () => {
+      it('should throw InvalidProductionStatusException if order not PENDING', async () => {
         const order = {
           ...createTestProductionOrder({ status: 'IN_PROGRESS' }),
           bom: { ...createTestBOM(), product: createTestProduct(), items: [] },
@@ -419,7 +424,7 @@ describe('ProductionService', () => {
 
         await expect(
           service.startProduction('po-1', 'warehouse-1', 'user-1'),
-        ).rejects.toThrow(BadRequestException);
+        ).rejects.toThrow(InvalidProductionStatusException);
       });
     });
 
@@ -460,7 +465,7 @@ describe('ProductionService', () => {
         expect(result.status).toBe('COMPLETED');
       });
 
-      it('should throw BadRequestException if order not IN_PROGRESS', async () => {
+      it('should throw InvalidProductionStatusException if order not IN_PROGRESS', async () => {
         const order = {
           ...createTestProductionOrder({ status: 'PENDING' }),
           bom: { ...createTestBOM(), product: createTestProduct(), items: [] },
@@ -470,7 +475,7 @@ describe('ProductionService', () => {
 
         await expect(
           service.completeProduction('po-1', 'warehouse-1', 'user-1'),
-        ).rejects.toThrow(BadRequestException);
+        ).rejects.toThrow(InvalidProductionStatusException);
       });
     });
   });
@@ -520,11 +525,11 @@ describe('ProductionService', () => {
         expect(result.orders).toHaveLength(1);
       });
 
-      it('should throw NotFoundException if supplier not found', async () => {
+      it('should throw SupplierNotFoundException if supplier not found', async () => {
         prisma.supplier.findUnique.mockResolvedValue(null);
 
         await expect(service.getSupplierById('non-existent')).rejects.toThrow(
-          NotFoundException,
+          SupplierNotFoundException,
         );
       });
     });
@@ -633,12 +638,12 @@ describe('ProductionService', () => {
         expect(result.items).toHaveLength(1);
       });
 
-      it('should throw NotFoundException if PO not found', async () => {
+      it('should throw PurchaseOrderNotFoundException if PO not found', async () => {
         prisma.purchaseOrder.findUnique.mockResolvedValue(null);
 
         await expect(
           service.getPurchaseOrderById('non-existent'),
-        ).rejects.toThrow(NotFoundException);
+        ).rejects.toThrow(PurchaseOrderNotFoundException);
       });
     });
 

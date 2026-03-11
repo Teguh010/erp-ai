@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 import { InventoryService } from './inventory.service';
 import { PrismaService } from '../../database/prisma.service';
 import {
@@ -11,6 +11,11 @@ import {
   createTestStockMovement,
 } from '../../test/test-utils';
 import { MovementType } from './dto';
+import {
+  WarehouseNotFoundException,
+  ProductNotFoundException,
+  InsufficientStockException,
+} from '../../common/exceptions';
 
 describe('InventoryService', () => {
   let service: InventoryService;
@@ -82,11 +87,11 @@ describe('InventoryService', () => {
         expect(result.stocks).toHaveLength(1);
       });
 
-      it('should throw NotFoundException if warehouse not found', async () => {
+      it('should throw WarehouseNotFoundException if warehouse not found', async () => {
         prisma.warehouse.findUnique.mockResolvedValue(null);
 
         await expect(service.getWarehouseById('non-existent')).rejects.toThrow(
-          NotFoundException,
+          WarehouseNotFoundException,
         );
       });
     });
@@ -244,11 +249,11 @@ describe('InventoryService', () => {
         expect(result.id).toBe(product.id);
       });
 
-      it('should throw NotFoundException if product not found', async () => {
+      it('should throw ProductNotFoundException if product not found', async () => {
         prisma.product.findUnique.mockResolvedValue(null);
 
         await expect(service.getProductById('non-existent')).rejects.toThrow(
-          NotFoundException,
+          ProductNotFoundException,
         );
       });
     });
@@ -405,7 +410,7 @@ describe('InventoryService', () => {
         });
       });
 
-      it('should throw BadRequestException for OUTBOUND with insufficient stock', async () => {
+      it('should throw InsufficientStockException for OUTBOUND with insufficient stock', async () => {
         const dto = {
           productId: 'product-1',
           warehouseId: 'warehouse-1',
@@ -417,10 +422,7 @@ describe('InventoryService', () => {
         prisma.stock.findUnique.mockResolvedValue(existingStock);
 
         await expect(service.createStockMovement(dto, userId)).rejects.toThrow(
-          BadRequestException,
-        );
-        await expect(service.createStockMovement(dto, userId)).rejects.toThrow(
-          'Insufficient stock',
+          InsufficientStockException,
         );
       });
 

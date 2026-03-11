@@ -1,12 +1,12 @@
-import {
-  Injectable,
-  UnauthorizedException,
-  ConflictException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../database/prisma.service';
 import { RegisterDto } from './dto';
 import { JwtPayload, UserWithRole } from '../../common/interfaces';
+import {
+  EmailExistsException,
+  InvalidCredentialsException,
+} from '../../common/exceptions';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -24,7 +24,7 @@ export class AuthService {
     });
 
     if (existingUser) {
-      throw new ConflictException('Email already exists');
+      throw new EmailExistsException(email);
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -63,7 +63,7 @@ export class AuthService {
     });
 
     if (!user || !(await bcrypt.compare(pass, user.passwordHash))) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new InvalidCredentialsException();
     }
 
     // Update last login
