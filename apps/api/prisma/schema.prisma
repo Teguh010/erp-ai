@@ -44,29 +44,35 @@ model Role {
 }
 
 // --- MASTER DATA ---
+model Unit {
+  id       String    @id @default(uuid())
+  name     String    @unique
+  products Product[]
+
+  @@index([name])
+}
+
 model Product {
-  id          String   @id @default(uuid())
-  sku         String   @unique
-  name        String
-  description String?
-  categoryId  String
-  category    Category @relation(fields: [categoryId], references: [id])
-  unit        String
+  id            String    @id @default(uuid())
+  name          String
+  categoryId    String
+  category      Category  @relation(fields: [categoryId], references: [id])
+  unitId        String
+  unit          Unit      @relation(fields: [unitId], references: [id])
   purchasePrice Float
   salePrice     Float?
-  minStockLevel Int      @default(0)
   deletedAt     DateTime? // Soft delete
 
-  stocks      Stock[]
-  movements   StockMovement[]
-  bom         BillOfMaterials?
+  stocks             Stock[]
+  movements          StockMovement[]
+  bom                BillOfMaterials?
   bomItemsAsMaterial BOMItem[]
-  purchaseItems PurchaseOrderItem[]
-  salesItems    SalesOrderItem[]
+  purchaseItems      PurchaseOrderItem[]
+  salesItems         SalesOrderItem[]
 
   @@index([categoryId])
+  @@index([unitId])
   @@index([name])
-  @@index([minStockLevel])
   @@index([deletedAt])
 }
 

@@ -55,6 +55,7 @@ describe('InventoryController', () => {
         totalWarehouses: 5,
         lowStockCount: 10,
         totalStockValue: 50000,
+        recentMovements: [],
       };
 
       inventoryService.getDashboardStats.mockResolvedValue(stats);
@@ -80,7 +81,7 @@ describe('InventoryController', () => {
     });
 
     it('should get all warehouses', async () => {
-      const warehouses = [createTestWarehouse()];
+      const warehouses = [{ ...createTestWarehouse(), _count: { stocks: 0 } }];
       inventoryService.getAllWarehouses.mockResolvedValue(warehouses);
 
       const result = await controller.getAllWarehouses();
@@ -135,7 +136,7 @@ describe('InventoryController', () => {
     });
 
     it('should get all categories', async () => {
-      const categories = [createTestCategory()];
+      const categories = [{ ...createTestCategory(), _count: { products: 0 } }];
       inventoryService.getAllCategories.mockResolvedValue(categories);
 
       const result = await controller.getAllCategories();
@@ -148,45 +149,45 @@ describe('InventoryController', () => {
   describe('Product Endpoints', () => {
     it('should create product', async () => {
       const dto = {
-        sku: 'SKU-001',
         name: 'Test Product',
         categoryId: 'cat-1',
-        unit: 'pcs',
+        unitId: 'unit-1',
         purchasePrice: 100,
       };
       const product = { ...createTestProduct(dto), category: createTestCategory() };
 
-      inventoryService.createProduct.mockResolvedValue(product);
+      inventoryService.createProduct.mockResolvedValue(product as any);
 
       const result = await controller.createProduct(dto);
 
-      expect(result.sku).toBe(dto.sku);
+      expect(result.name).toBe(dto.name);
     });
 
     it('should get all products with pagination', async () => {
       const query = { page: 1, limit: 20 };
       const response = {
-        data: [{ ...createTestProduct(), category: createTestCategory(), stocks: [] }],
-        meta: { total: 1, page: 1, limit: 20, totalPages: 1 },
+        data: [{ ...createTestProduct(), category: createTestCategory(), unit: { id: 'unit-1', name: 'pcs' }, stocks: [] }],
+        meta: { hasNextPage: false, endCursor: null },
       };
 
-      inventoryService.getAllProducts.mockResolvedValue(response);
+      inventoryService.getAllProducts.mockResolvedValue(response as any);
 
       const result = await controller.getAllProducts(query);
 
       expect(result.data).toHaveLength(1);
-      expect(result.meta.total).toBe(1);
+      expect((result.meta as any).hasNextPage).toBe(false);
     });
 
     it('should get product by id', async () => {
       const product = {
         ...createTestProduct(),
         category: createTestCategory(),
+        unit: { id: 'unit-1', name: 'pcs' },
         stocks: [],
         bom: null,
       };
 
-      inventoryService.getProductById.mockResolvedValue(product);
+      inventoryService.getProductById.mockResolvedValue(product as any);
 
       const result = await controller.getProductById('product-1');
 
@@ -197,7 +198,7 @@ describe('InventoryController', () => {
       const dto = { name: 'Updated Product' };
       const product = { ...createTestProduct(dto), category: createTestCategory() };
 
-      inventoryService.updateProduct.mockResolvedValue(product);
+      inventoryService.updateProduct.mockResolvedValue(product as any);
 
       const result = await controller.updateProduct('product-1', dto);
 
@@ -229,7 +230,7 @@ describe('InventoryController', () => {
         meta: { total: 1, page: 1, limit: 20, totalPages: 1 },
       };
 
-      inventoryService.getStock.mockResolvedValue(response);
+      inventoryService.getStock.mockResolvedValue(response as any);
 
       const result = await controller.getStock(query);
 
@@ -240,12 +241,12 @@ describe('InventoryController', () => {
       const lowStockItems = [
         {
           ...createTestStock({ quantity: 5 }),
-          product: createTestProduct({ minStockLevel: 10 }),
+          product: createTestProduct(),
           warehouse: createTestWarehouse(),
         },
       ];
 
-      inventoryService.getLowStockItems.mockResolvedValue(lowStockItems);
+      inventoryService.getLowStockItems.mockResolvedValue(lowStockItems as any);
 
       const result = await controller.getLowStockItems({});
 
@@ -267,7 +268,7 @@ describe('InventoryController', () => {
         product: createTestProduct(),
         warehouse: createTestWarehouse(),
       };
-      const req = { user: { sub: 'user-1' } };
+      const req = { user: { sub: 'user-1' } } as any;
 
       inventoryService.createStockMovement.mockResolvedValue(movement);
 

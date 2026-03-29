@@ -28,12 +28,11 @@ export default function ProductsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [formData, setFormData] = useState({
-    sku: '',
     name: '',
-    description: '',
     categoryId: '',
-    unitPrice: '',
-    reorderLevel: '10',
+    unitId: '',
+    purchasePrice: '',
+    salePrice: '',
   });
 
   const { data: productsData, isLoading } = useQuery({
@@ -46,11 +45,17 @@ export default function ProductsPage() {
     queryFn: () => api.getCategories(),
   });
 
+  const { data: unitsData } = useQuery({
+    queryKey: ['units'],
+    queryFn: () => api.getUnits(),
+  });
+
   // API returns { data: { data: products[], meta } } for paginated list
   const products = Array.isArray(productsData?.data)
     ? productsData.data
     : productsData?.data?.data ?? [];
   const categories = categoriesData?.data || [];
+  const units = unitsData?.data || [];
 
   const createMutation = useMutation({
     mutationFn: (data: any) => api.createProduct(data),
@@ -79,33 +84,20 @@ export default function ProductsPage() {
     if (product) {
       setEditingProduct(product);
       setFormData({
-        sku: product.sku,
         name: product.name,
-        description: product.description || '',
         categoryId: product.categoryId,
-        // Backend may use unitPrice / salePrice / purchasePrice; normalize safely to string
-        unitPrice: (
-          product.unitPrice ??
-          product.salePrice ??
-          product.purchasePrice ??
-          ''
-        ).toString(),
-        // Backend may use reorderLevel / minStockLevel; normalize safely to string
-        reorderLevel: (
-          product.reorderLevel ??
-          product.minStockLevel ??
-          '10'
-        ).toString(),
+        unitId: product.unitId || '',
+        purchasePrice: (product.purchasePrice ?? 0).toString(),
+        salePrice: (product.salePrice ?? 0).toString(),
       });
     } else {
       setEditingProduct(null);
       setFormData({
-        sku: '',
         name: '',
-        description: '',
         categoryId: categories[0]?.id || '',
-        unitPrice: '',
-        reorderLevel: '10',
+        unitId: units[0]?.id || '',
+        purchasePrice: '',
+        salePrice: '',
       });
     }
     setIsModalOpen(true);
@@ -120,8 +112,8 @@ export default function ProductsPage() {
     e.preventDefault();
     const data = {
       ...formData,
-      unitPrice: parseFloat(formData.unitPrice),
-      reorderLevel: parseInt(formData.reorderLevel),
+      purchasePrice: parseFloat(formData.purchasePrice),
+      salePrice: parseFloat(formData.salePrice) || undefined,
     };
 
     if (editingProduct) {
@@ -167,37 +159,22 @@ export default function ProductsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>SKU</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Category</TableHead>
-                  <TableHead>Price</TableHead>
-                  <TableHead>Reorder Level</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>Unit</TableHead>
+                  <TableHead>Purchase Price</TableHead>
+                  <TableHead>Sale Price</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {products?.map((product: any) => (
                   <TableRow key={product.id}>
-                    <TableCell className="font-mono text-xs">{product.sku}</TableCell>
                     <TableCell className="font-medium">{product.name}</TableCell>
                     <TableCell>{product.category?.name || '-'}</TableCell>
-                    <TableCell>
-                      {formatCurrency(
-                        product.unitPrice ??
-                          product.salePrice ??
-                          product.purchasePrice ??
-                          0
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {product.reorderLevel ?? product.minStockLevel ?? '-'}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={product.isActive ? 'success' : 'default'}>
-                        {product.isActive ? 'Active' : 'Inactive'}
-                      </Badge>
-                    </TableCell>
+                    <TableCell>{product.unit?.name || '-'}</TableCell>
+                    <TableCell>{formatCurrency(product.purchasePrice ?? 0)}</TableCell>
+                    <TableCell>{formatCurrency(product.salePrice ?? 0)}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
                         <Button
@@ -243,27 +220,13 @@ export default function ProductsPage() {
         size="lg"
       >
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="SKU"
-              value={formData.sku}
-              onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-              required
-              disabled={!!editingProduct}
-            />
-            <Input
-              label="Name"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              required
-            />
-          </div>
           <Input
-            label="Description"
-            value={formData.description}
-            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            label="Name"
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            required
           />
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <Select
               label="Category"
               value={formData.categoryId}
@@ -271,19 +234,27 @@ export default function ProductsPage() {
               options={categories.map((c: any) => ({ value: c.id, label: c.name }))}
               required
             />
+            <Select
+              label="Unit"
+              value={formData.unitId}
+              onChange={(e) => setFormData({ ...formData, unitId: e.target.value })}
+              options={units.map((u: any) => ({ value: u.id, label: u.name }))}
+              required
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
             <Input
-              label="Unit Price"
+              label="Purchase Price"
               type="number"
-              value={formData.unitPrice}
-              onChange={(e) => setFormData({ ...formData, unitPrice: e.target.value })}
+              value={formData.purchasePrice}
+              onChange={(e) => setFormData({ ...formData, purchasePrice: e.target.value })}
               required
             />
             <Input
-              label="Reorder Level"
+              label="Sale Price"
               type="number"
-              value={formData.reorderLevel}
-              onChange={(e) => setFormData({ ...formData, reorderLevel: e.target.value })}
-              required
+              value={formData.salePrice}
+              onChange={(e) => setFormData({ ...formData, salePrice: e.target.value })}
             />
           </div>
           <div className="flex justify-end gap-3 pt-4">

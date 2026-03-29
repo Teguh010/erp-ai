@@ -36,6 +36,7 @@ export const createTestUser = (overrides = {}) => ({
   createdAt: new Date(),
   updatedAt: new Date(),
   lastLogin: null,
+  deletedAt: null,
   ...overrides,
 });
 
@@ -50,25 +51,25 @@ export const createTestWarehouse = (overrides = {}) => ({
   id: 'warehouse-1',
   name: 'Main Warehouse',
   location: 'Jakarta',
+  deletedAt: null,
   ...overrides,
 });
 
 export const createTestCategory = (overrides = {}) => ({
   id: 'category-1',
   name: 'Raw Materials',
+  deletedAt: null,
   ...overrides,
 });
 
 export const createTestProduct = (overrides = {}) => ({
   id: 'product-1',
-  sku: 'SKU-001',
   name: 'Test Product',
-  description: 'Test Description',
   categoryId: 'category-1',
-  unit: 'pcs',
+  unitId: 'unit-1',
   purchasePrice: 100,
   salePrice: 150,
-  minStockLevel: 10,
+  deletedAt: null,
   ...overrides,
 });
 
@@ -117,6 +118,7 @@ export const createTestSupplier = (overrides = {}) => ({
   name: 'Test Supplier',
   contact: '08123456789',
   email: 'supplier@test.com',
+  deletedAt: null,
   ...overrides,
 });
 

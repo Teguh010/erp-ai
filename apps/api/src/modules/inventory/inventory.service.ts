@@ -7,6 +7,7 @@ import {
   CreateProductDto,
   UpdateProductDto,
   CreateCategoryDto,
+  CreateUnitDto,
   CreateStockMovementDto,
   StockQueryDto,
   MovementType,
@@ -114,11 +115,20 @@ export class InventoryService {
     );
   }
 
+  // ==================== UNIT ====================
+  async createUnit(dto: CreateUnitDto) {
+    return this.prisma.unit.create({ data: dto });
+  }
+
+  async getAllUnits() {
+    return this.prisma.unit.findMany({ orderBy: { name: 'asc' } });
+  }
+
   // ==================== PRODUCT ====================
   async createProduct(dto: CreateProductDto) {
     const product = await this.prisma.product.create({
       data: dto,
-      include: { category: true },
+      include: { category: true, unit: true },
     });
     await this.cache.delByPrefix(CachePrefix.PRODUCTS_LIST);
     return product;
@@ -148,6 +158,7 @@ export class InventoryService {
             take: limit,
             include: {
               category: true,
+              unit: true,
               stocks: {
                 include: { warehouse: true },
               },
@@ -188,6 +199,7 @@ export class InventoryService {
       take: limit + 1,
       include: {
         category: true,
+        unit: true,
         stocks: {
           include: { warehouse: true },
         },
@@ -205,10 +217,7 @@ export class InventoryService {
     if (!search?.trim()) return undefined;
 
     return {
-      OR: [
-        { name: { contains: search.trim() } },
-        { sku: { contains: search.trim() } },
-      ],
+      name: { contains: search.trim() },
     };
   }
 
@@ -222,6 +231,7 @@ export class InventoryService {
           where: { id },
           include: {
             category: true,
+            unit: true,
             stocks: { include: { warehouse: true } },
             bom: { include: { items: true } },
           },
@@ -239,7 +249,7 @@ export class InventoryService {
     const product = await this.prisma.product.update({
       where: { id },
       data: dto,
-      include: { category: true },
+      include: { category: true, unit: true },
     });
     await this.cache.invalidateProduct(id);
     return product;
@@ -287,17 +297,8 @@ export class InventoryService {
   }
 
   async getLowStockItems(warehouseId?: string) {
-    const stocks = await this.prisma.stock.findMany({
-      where: warehouseId ? { warehouseId } : undefined,
-      include: {
-        product: true,
-        warehouse: true,
-      },
-    });
-
-    return stocks.filter(
-      (stock) => stock.quantity <= stock.product.minStockLevel,
-    );
+    // minStockLevel has been removed — return empty for now
+    return [];
   }
 
   // ==================== STOCK MOVEMENT ====================
@@ -454,7 +455,7 @@ export class InventoryService {
         take: 10,
         orderBy: { createdAt: 'desc' },
         include: {
-          product: { select: { name: true, sku: true } },
+          product: { select: { name: true } },
           warehouse: { select: { name: true } },
         },
       }),

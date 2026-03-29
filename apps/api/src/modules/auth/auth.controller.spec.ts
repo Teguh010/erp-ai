@@ -71,12 +71,16 @@ describe('AuthController', () => {
 
   describe('getProfile', () => {
     it('should return user from request', () => {
-      const user = { ...createTestUser(), role: createTestRole() };
-      const req = { user };
+      const mockUser = createTestUser();
+      const mockRole = createTestRole({ permissions: ['MANAGE_INVENTORY'] as any });
 
-      const result = controller.getProfile(req);
+      const request = {
+        user: { ...mockUser, role: mockRole },
+      } as any;
+      
+      const result = controller.getProfile(request);
 
-      expect(result).toEqual(user);
+      expect(result).toEqual(request.user);
     });
   });
 });

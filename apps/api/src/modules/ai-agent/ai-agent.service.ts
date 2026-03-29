@@ -58,7 +58,7 @@ export class AiAgentService {
     const [stocks, movements, lowStockItems] = await Promise.all([
       this.prisma.stock.findMany({
         include: {
-          product: { select: { name: true, sku: true, minStockLevel: true } },
+          product: { select: { name: true } },
           warehouse: { select: { name: true } },
         },
         take: 50,
@@ -76,7 +76,7 @@ export class AiAgentService {
           quantity: { lte: 0 },
         },
         include: {
-          product: { select: { name: true, sku: true, minStockLevel: true } },
+          product: { select: { name: true } },
           warehouse: { select: { name: true } },
         },
       }),
@@ -109,13 +109,13 @@ export class AiAgentService {
       }),
       this.prisma.billOfMaterials.findMany({
         include: {
-          product: { select: { name: true, sku: true } },
+          product: { select: { name: true } },
           items: true,
         },
       }),
       this.prisma.stock.findMany({
         include: {
-          product: { select: { name: true, sku: true } },
+          product: { select: { name: true } },
           warehouse: { select: { name: true } },
         },
       }),

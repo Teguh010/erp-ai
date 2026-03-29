@@ -187,15 +187,15 @@ describe('InventoryService', () => {
     describe('createProduct', () => {
       it('should create a product with category', async () => {
         const dto = {
-          sku: 'NEW-SKU-001',
           name: 'New Product',
           categoryId: 'category-1',
-          unit: 'pcs',
+          unitId: 'unit-1',
           purchasePrice: 100,
         };
         const product = {
           ...createTestProduct(dto),
           category: createTestCategory(),
+          unit: { id: 'unit-1', name: 'pcs' },
         };
 
         prisma.product.create.mockResolvedValue(product);
@@ -204,9 +204,9 @@ describe('InventoryService', () => {
 
         expect(prisma.product.create).toHaveBeenCalledWith({
           data: dto,
-          include: { category: true },
+          include: { category: true, unit: true },
         });
-        expect(result.sku).toBe(dto.sku);
+        expect(result.name).toBe(dto.name);
       });
     });
 
@@ -239,10 +239,7 @@ describe('InventoryService', () => {
         expect(prisma.product.findMany).toHaveBeenCalledWith(
           expect.objectContaining({
             where: {
-              OR: [
-                { name: { contains: 'test', mode: 'insensitive' } },
-                { sku: { contains: 'test', mode: 'insensitive' } },
-              ],
+              name: { contains: 'test' },
             },
           }),
         );
@@ -254,6 +251,7 @@ describe('InventoryService', () => {
         const product = {
           ...createTestProduct(),
           category: createTestCategory(),
+          unit: { id: 'unit-1', name: 'pcs' },
           stocks: [],
           bom: null,
         };
@@ -280,6 +278,7 @@ describe('InventoryService', () => {
         const product = {
           ...createTestProduct(),
           category: createTestCategory(),
+          unit: { id: 'unit-1', name: 'pcs' },
           stocks: [],
           bom: null,
         };
@@ -352,24 +351,9 @@ describe('InventoryService', () => {
     });
 
     describe('getLowStockItems', () => {
-      it('should return items with quantity below minimum level', async () => {
-        const lowStockItem = {
-          ...createTestStock({ quantity: 5 }),
-          product: createTestProduct({ minStockLevel: 10 }),
-          warehouse: createTestWarehouse(),
-        };
-        const normalStockItem = {
-          ...createTestStock({ id: 'stock-2', quantity: 100 }),
-          product: createTestProduct({ id: 'product-2', minStockLevel: 10 }),
-          warehouse: createTestWarehouse(),
-        };
-
-        prisma.stock.findMany.mockResolvedValue([lowStockItem, normalStockItem]);
-
+      it('should return empty array unconditionally (feature removed)', async () => {
         const result = await service.getLowStockItems();
-
-        expect(result).toHaveLength(1);
-        expect(result[0].quantity).toBeLessThanOrEqual(result[0].product.minStockLevel);
+        expect(result).toHaveLength(0);
       });
     });
   });

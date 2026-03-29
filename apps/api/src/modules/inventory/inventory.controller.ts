@@ -19,6 +19,7 @@ import {
   CreateProductDto,
   UpdateProductDto,
   CreateCategoryDto,
+  CreateUnitDto,
   CreateStockMovementDto,
   StockQueryDto,
   LowStockQueryDto,
@@ -87,6 +88,20 @@ export class InventoryController {
   @ApiOperation({ summary: 'Get all categories' })
   getAllCategories() {
     return this.inventoryService.getAllCategories();
+  }
+
+  // ==================== UNIT ====================
+  @Post('units')
+  @ApiOperation({ summary: 'Create a new unit' })
+  @Roles('ADMIN')
+  createUnit(@Body() dto: CreateUnitDto) {
+    return this.inventoryService.createUnit(dto);
+  }
+
+  @Get('units')
+  @ApiOperation({ summary: 'Get all units' })
+  getAllUnits() {
+    return this.inventoryService.getAllUnits();
   }
 
   // ==================== PRODUCT ====================

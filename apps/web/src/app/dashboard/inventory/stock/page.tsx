@@ -68,32 +68,26 @@ export default function StockPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Product</TableHead>
-                  <TableHead>SKU</TableHead>
                   <TableHead>Warehouse</TableHead>
                   <TableHead className="text-right">Quantity</TableHead>
-                  <TableHead className="text-right">Reorder Level</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {stocks.map((stock: any) => {
-                  const isLowStock = stock.quantity <= (stock.product?.reorderLevel || 0);
+                  const isZeroStock = stock.quantity === 0;
                   return (
                     <TableRow key={stock.id}>
                       <TableCell className="font-medium">{stock.product?.name}</TableCell>
-                      <TableCell className="font-mono text-xs">{stock.product?.sku}</TableCell>
                       <TableCell>{stock.warehouse?.name}</TableCell>
                       <TableCell className="text-right font-semibold">
                         {stock.quantity.toLocaleString()}
                       </TableCell>
-                      <TableCell className="text-right text-gray-500">
-                        {stock.product?.reorderLevel || '-'}
-                      </TableCell>
                       <TableCell>
-                        {isLowStock ? (
+                        {isZeroStock ? (
                           <Badge variant="warning" className="flex items-center gap-1 w-fit">
                             <AlertTriangle className="w-3 h-3" />
-                            Low Stock
+                            Empty Stock
                           </Badge>
                         ) : (
                           <Badge variant="success">In Stock</Badge>

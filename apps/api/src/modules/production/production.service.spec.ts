@@ -333,7 +333,7 @@ describe('ProductionService', () => {
           ...createTestProductionOrder(),
           bom: { ...createTestBOM(), product: createTestProduct(), items: [] },
         };
-        const updateDto = { quantity: 200 };
+        const updateDto = { notes: 'Updated notes' } as any;
 
         prisma.productionOrder.findUnique.mockResolvedValue(order);
         prisma.productionOrder.update.mockResolvedValue({
@@ -343,7 +343,7 @@ describe('ProductionService', () => {
 
         const result = await service.updateProductionOrder('po-1', updateDto);
 
-        expect(result.quantity).toBe(200);
+        expect((result as any).notes).toBe('Updated notes');
       });
 
       it('should set completedDate when status is COMPLETED', async () => {

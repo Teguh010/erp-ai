@@ -26,22 +26,20 @@ export class UpdateWarehouseDto {
   location?: string;
 }
 
-export class CreateProductDto {
-  @IsString()
-  sku: string;
-
+export class CreateUnitDto {
   @IsString()
   name: string;
+}
 
+export class CreateProductDto {
   @IsString()
-  @IsOptional()
-  description?: string;
+  name: string;
 
   @IsUUID()
   categoryId: string;
 
-  @IsString()
-  unit: string;
+  @IsUUID()
+  unitId: string;
 
   @Type(() => Number)
   purchasePrice: number;
@@ -49,12 +47,6 @@ export class CreateProductDto {
   @Type(() => Number)
   @IsOptional()
   salePrice?: number;
-
-  @IsInt()
-  @Min(0)
-  @IsOptional()
-  @Type(() => Number)
-  minStockLevel?: number;
 }
 
 export class UpdateProductDto {
@@ -62,17 +54,13 @@ export class UpdateProductDto {
   @IsOptional()
   name?: string;
 
-  @IsString()
-  @IsOptional()
-  description?: string;
-
   @IsUUID()
   @IsOptional()
   categoryId?: string;
 
-  @IsString()
+  @IsUUID()
   @IsOptional()
-  unit?: string;
+  unitId?: string;
 
   @Type(() => Number)
   @IsOptional()
@@ -81,12 +69,6 @@ export class UpdateProductDto {
   @Type(() => Number)
   @IsOptional()
   salePrice?: number;
-
-  @IsInt()
-  @Min(0)
-  @IsOptional()
-  @Type(() => Number)
-  minStockLevel?: number;
 }
 
 export class CreateCategoryDto {

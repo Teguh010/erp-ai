@@ -118,6 +118,7 @@ describe('AuthService', () => {
     it('should use default role "USER" if roleName not provided', async () => {
       const role = createTestRole({ name: 'USER' });
       const createdUser = createTestUser();
+      const userWithRole = { ...createTestUser(), role: role } as any;
 
       prisma.user.findUnique.mockResolvedValue(null);
       prisma.role.findUnique.mockResolvedValue(role);
@@ -144,9 +145,9 @@ describe('AuthService', () => {
       const user = createTestUser({
         email: loginCredentials.email,
         role,
-      });
+      } as any);
 
-      prisma.user.findUnique.mockResolvedValue({ ...user, role });
+      prisma.user.findUnique.mockResolvedValue({ ...user, role } as any);
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
       prisma.user.update.mockResolvedValue(user);
 
@@ -182,7 +183,7 @@ describe('AuthService', () => {
       prisma.user.findUnique.mockResolvedValue({
         ...user,
         role: createTestRole(),
-      });
+      } as any);
       (bcrypt.compare as jest.Mock).mockResolvedValue(false);
 
       await expect(
@@ -192,9 +193,9 @@ describe('AuthService', () => {
 
     it('should update lastLogin timestamp on successful login', async () => {
       const role = createTestRole();
-      const user = createTestUser({ email: loginCredentials.email, role });
+      const user = createTestUser({ email: loginCredentials.email, role } as any);
 
-      prisma.user.findUnique.mockResolvedValue({ ...user, role });
+      prisma.user.findUnique.mockResolvedValue({ ...user, role } as any);
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
       prisma.user.update.mockResolvedValue(user);
 

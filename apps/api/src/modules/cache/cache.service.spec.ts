@@ -107,6 +107,8 @@ describe('CacheService', () => {
       const cachedValue = { id: '1', name: 'Cached' };
       cacheManager.get.mockResolvedValue(cachedValue);
 
+      const keysMock = jest.fn().mockResolvedValue([]);
+      (cacheManager as any).store = { keys: keysMock };
       const callback = jest.fn().mockResolvedValue({ id: '2', name: 'New' });
 
       const result = await service.getOrSet('test-key', callback);
@@ -118,6 +120,8 @@ describe('CacheService', () => {
     it('should execute callback and cache result on cache miss', async () => {
       cacheManager.get.mockResolvedValue(undefined);
       const newValue = { id: '1', name: 'New' };
+      const keysMock = jest.fn().mockResolvedValue(['test-1', 'test-2']);
+      (cacheManager as any).store = { keys: keysMock };
       const callback = jest.fn().mockResolvedValue(newValue);
 
       const result = await service.getOrSet('test-key', callback, CacheTTL.MEDIUM);
@@ -134,7 +138,7 @@ describe('CacheService', () => {
 
   describe('invalidateProduct', () => {
     it('should invalidate product-related caches', async () => {
-      const storeKeys = jest.spyOn(cacheManager.store as { keys: jest.Mock }, 'keys');
+      const storeKeys = jest.spyOn((cacheManager as any).store, 'keys');
       storeKeys.mockResolvedValue([]);
 
       await service.invalidateProduct('product-1');
@@ -145,7 +149,7 @@ describe('CacheService', () => {
 
   describe('invalidateWarehouse', () => {
     it('should invalidate warehouse-related caches', async () => {
-      const storeKeys = jest.spyOn(cacheManager.store as { keys: jest.Mock }, 'keys');
+      const storeKeys = jest.spyOn((cacheManager as any).store, 'keys');
       storeKeys.mockResolvedValue([]);
 
       await service.invalidateWarehouse('warehouse-1');

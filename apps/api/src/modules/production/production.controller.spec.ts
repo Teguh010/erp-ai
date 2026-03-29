@@ -69,7 +69,7 @@ describe('ProductionController', () => {
         items: [],
       };
 
-      productionService.createBOM.mockResolvedValue(bom);
+      jest.spyOn(productionService, 'createBOM').mockResolvedValue(bom as any);
 
       const result = await controller.createBOM(dto);
 
@@ -81,7 +81,7 @@ describe('ProductionController', () => {
       const boms = [
         { ...createTestBOM(), product: createTestProduct(), items: [] },
       ];
-      productionService.getAllBOMs.mockResolvedValue(boms);
+      jest.spyOn(productionService, 'getAllBOMs').mockResolvedValue(boms as any);
 
       const result = await controller.getAllBOMs();
 
@@ -110,7 +110,7 @@ describe('ProductionController', () => {
         items: [],
         productionOrders: [],
       };
-      productionService.updateBOM.mockResolvedValue(bom);
+      jest.spyOn(productionService, 'updateBOM').mockResolvedValue(bom as any);
 
       const result = await controller.updateBOM('bom-1', dto);
 
@@ -136,7 +136,7 @@ describe('ProductionController', () => {
         items: [],
         productionOrders: [],
       };
-      productionService.deleteBOMItem.mockResolvedValue(bom);
+      jest.spyOn(productionService, 'deleteBOMItem').mockResolvedValue(bom as any);
 
       const result = await controller.deleteBOMItem('item-1');
 
@@ -211,7 +211,7 @@ describe('ProductionController', () => {
       const result = await controller.startProduction(
         'po-1',
         'warehouse-1',
-        req,
+        req as any,
       );
 
       expect(productionService.startProduction).toHaveBeenCalledWith(
@@ -233,7 +233,7 @@ describe('ProductionController', () => {
       const result = await controller.completeProduction(
         'po-1',
         'warehouse-1',
-        req,
+        req as any,
       );
 
       expect(productionService.completeProduction).toHaveBeenCalledWith(
@@ -258,7 +258,7 @@ describe('ProductionController', () => {
     });
 
     it('should get all suppliers', async () => {
-      const suppliers = [createTestSupplier()];
+      const suppliers = [{ ...createTestSupplier(), _count: { orders: 0 } }];
       productionService.getAllSuppliers.mockResolvedValue(suppliers);
 
       const result = await controller.getAllSuppliers();
@@ -278,7 +278,7 @@ describe('ProductionController', () => {
     it('should update supplier', async () => {
       const dto = { name: 'Updated Supplier' };
       const supplier = createTestSupplier(dto);
-      productionService.updateSupplier.mockResolvedValue(supplier);
+      jest.spyOn(productionService, 'updateSupplier').mockResolvedValue(supplier as any);
 
       const result = await controller.updateSupplier('supplier-1', dto);
 
@@ -357,7 +357,7 @@ describe('ProductionController', () => {
         'purchase-1',
         dto,
         undefined,
-        req,
+        req as any,
       );
 
       expect(result.status).toBe('APPROVED');
@@ -377,7 +377,7 @@ describe('ProductionController', () => {
         'purchase-1',
         dto,
         'warehouse-1',
-        req,
+        req as any,
       );
 
       expect(productionService.updatePurchaseOrderStatus).toHaveBeenCalledWith(

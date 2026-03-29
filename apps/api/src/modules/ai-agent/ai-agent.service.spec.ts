@@ -51,8 +51,8 @@ describe('AiAgentService', () => {
       ragService.searchSimilarChunks.mockResolvedValue([]);
       prisma.stock.aggregate.mockResolvedValue({
         _sum: { quantity: 100 },
-        _count: 10,
-      });
+        _count: { _all: 10 },
+      } as any);
 
       const result = await service.chat('What is the inventory status?', 'inventory');
 
@@ -67,9 +67,9 @@ describe('AiAgentService', () => {
         {
           id: 'stock-1',
           quantity: 100,
-          product: { name: 'Product A', sku: 'SKU-A', minStockLevel: 10 },
+          product: { name: 'Product A' },
           warehouse: { name: 'Main' },
-        },
+        } as any,
       ]);
       prisma.stockMovement.findMany.mockResolvedValue([]);
 

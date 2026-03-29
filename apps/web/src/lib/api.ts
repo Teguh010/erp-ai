@@ -102,6 +102,12 @@ class ApiClient {
     return response.data;
   }
 
+  // Inventory - Units
+  async getUnits() {
+    const response = await this.client.get('/inventory/units');
+    return response.data;
+  }
+
   // Inventory - Products
   async getProducts(params?: { categoryId?: string; search?: string }) {
     const response = await this.client.get('/inventory/products', { params });
@@ -114,12 +120,11 @@ class ApiClient {
   }
 
   async createProduct(data: {
-    sku: string;
     name: string;
-    description?: string;
     categoryId: string;
-    unitPrice: number;
-    reorderLevel?: number;
+    unitId: string;
+    purchasePrice: number;
+    salePrice?: number;
   }) {
     const response = await this.client.post('/inventory/products', data);
     return response.data;
@@ -127,11 +132,10 @@ class ApiClient {
 
   async updateProduct(id: string, data: Partial<{
     name: string;
-    description: string;
     categoryId: string;
-    unitPrice: number;
-    reorderLevel: number;
-    isActive: boolean;
+    unitId: string;
+    purchasePrice: number;
+    salePrice: number;
   }>) {
     const response = await this.client.put(`/inventory/products/${id}`, data);
     return response.data;
