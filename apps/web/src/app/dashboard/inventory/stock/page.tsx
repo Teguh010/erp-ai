@@ -48,12 +48,9 @@ export default function StockPage() {
         <CardHeader>
           <div className="flex items-center gap-4">
             <Select
-              value={warehouseId}
+              value={warehouseId || warehouses[0]?.id || ''}
               onChange={(e) => setWarehouseId(e.target.value)}
-              options={[
-                { value: '', label: 'All Warehouses' },
-                ...warehouses.map((w: any) => ({ value: w.id, label: w.name })),
-              ]}
+              options={warehouses.map((w: any) => ({ value: w.id, label: w.name }))}
               className="w-64"
             />
           </div>

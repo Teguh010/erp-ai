@@ -15,6 +15,7 @@ import {
   Menu,
   X,
   ChevronDown,
+  ShoppingCart,
 } from 'lucide-react';
 
 interface NavItem {
@@ -54,6 +55,15 @@ const navigation: NavItem[] = [
     children: [
       { name: 'Suppliers', href: '/dashboard/supply-chain/suppliers' },
       { name: 'Purchase Orders', href: '/dashboard/supply-chain/purchase-orders' },
+    ],
+  },
+  {
+    name: 'Sales',
+    href: '/dashboard/sales',
+    icon: <ShoppingCart className="w-5 h-5" />,
+    children: [
+      { name: 'Orders', href: '/dashboard/sales' },
+      { name: 'Customers', href: '/dashboard/sales/customers' },
     ],
   },
   { name: 'AI Assistant', href: '/dashboard/ai', icon: <Bot className="w-5 h-5" /> },

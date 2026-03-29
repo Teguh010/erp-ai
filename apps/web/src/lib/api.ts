@@ -174,6 +174,48 @@ class ApiClient {
     return response.data;
   }
 
+  // --- SALES ORDERS ---
+  async getCustomers() {
+    const response = await this.client.get('/sales/customers');
+    return response.data;
+  }
+
+  async createCustomer(data: { name: string; email?: string; phone?: string }) {
+    const response = await this.client.post('/sales/customers', data);
+    return response.data;
+  }
+
+  async getSalesOrders() {
+    const response = await this.client.get('/sales/orders');
+    return response.data;
+  }
+
+  async getSalesOrder(id: string) {
+    const response = await this.client.get(`/sales/orders/${id}`);
+    return response.data;
+  }
+
+  async createSalesOrder(data: {
+    customerId: string;
+    expectedDeliveryDate?: string;
+    items: { productId: string; quantity: number; price: number }[];
+  }) {
+    const response = await this.client.post('/sales/orders', data);
+    return response.data;
+  }
+
+  async updateSalesOrderStatus(
+    id: string,
+    data: {
+      status: 'PENDING' | 'PROCESSING' | 'SHIPPED' | 'COMPLETED' | 'CANCELLED';
+      shippingDate?: string;
+      receivedDate?: string;
+    }
+  ) {
+    const response = await this.client.patch(`/sales/orders/${id}/status`, data);
+    return response.data;
+  }
+
   // Production - BOM
   async getBOMs() {
     const response = await this.client.get('/production/bom');

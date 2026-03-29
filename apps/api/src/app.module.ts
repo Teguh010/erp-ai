@@ -11,6 +11,7 @@ import { InventoryModule } from './modules/inventory/inventory.module';
 import { ProductionModule } from './modules/production/production.module';
 import { AiAgentModule } from './modules/ai-agent/ai-agent.module';
 import { HealthModule } from './modules/health/health.module';
+import { SalesModule } from './modules/sales/sales.module';
 // import { NotificationsModule } from './modules/notifications/notifications.module';
 // Note: NotificationsModule requires Redis. Uncomment when Redis is available.
 
@@ -48,6 +49,7 @@ import { HealthModule } from './modules/health/health.module';
     InventoryModule,
     ProductionModule,
     AiAgentModule,
+    SalesModule,
     // NotificationsModule, // Requires Redis - enable when Redis is running
   ],
   controllers: [AppController],

@@ -275,11 +275,14 @@ model Customer {
 }
 
 model SalesOrder {
-  id          String   @id @default(uuid())
-  customerId  String
-  status      String
-  totalAmount Float
-  createdAt   DateTime @default(now())
+  id                   String        @id @default(uuid())
+  customerId           String
+  status               SalesOrderStatus @default(PENDING)
+  totalAmount          Float
+  expectedDeliveryDate DateTime?
+  shippingDate         DateTime?
+  receivedDate         DateTime?
+  createdAt            DateTime      @default(now())
 
   customer Customer        @relation(fields: [customerId], references: [id])
   items    SalesOrderItem[]
@@ -345,4 +348,12 @@ model AIDocumentChunk {
 
   @@index([documentId])
   @@index([chunkIndex])
+}
+
+enum SalesOrderStatus {
+  PENDING
+  PROCESSING
+  SHIPPED
+  COMPLETED
+  CANCELLED
 }

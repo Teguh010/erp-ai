@@ -73,26 +73,21 @@ async function main() {
   }
 
   // ==================== WAREHOUSES ====================
+  console.log('Clearing old warehouses...');
+  await prisma.stockMovement.deleteMany({});
+  await prisma.stock.deleteMany({});
+  await prisma.warehouse.deleteMany({});
+
   const warehouses = [
-    { name: 'Gudang Bahan Baku', location: 'Jakarta, Indonesia' },
-    { name: 'Gudang Produksi', location: 'Area Pabrik, Jakarta' },
-    { name: 'Gudang Barang Jadi', location: 'Jakarta, Indonesia' },
+    { name: 'Gudang Utama', location: 'Pabrik Utama' },
   ];
 
-  console.log('Creating warehouses...');
+  console.log('Creating warehouse...');
   const warehouseMap: Record<string, string> = {};
   for (const wh of warehouses) {
-    const existing = await prisma.warehouse.findFirst({
-      where: { name: wh.name },
+    const warehouse = await prisma.warehouse.create({
+      data: wh,
     });
-    const warehouse = existing
-      ? await prisma.warehouse.update({
-          where: { id: existing.id },
-          data: { location: wh.location },
-        })
-      : await prisma.warehouse.create({
-          data: wh,
-        });
     warehouseMap[wh.name] = warehouse.id;
   }
   const allWarehouses = await prisma.warehouse.findMany();
@@ -164,7 +159,7 @@ async function main() {
   }
 
   // ==================== INITIAL STOCK ====================
-  const gudangJadi = warehouseMap['Gudang Barang Jadi'] ?? allWarehouses[0]?.id;
+  const gudangJadi = warehouseMap['Gudang Utama'] ?? allWarehouses[0]?.id;
 
   console.log('Creating initial stock...');
   if (gudangJadi) {

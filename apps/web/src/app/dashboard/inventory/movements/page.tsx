@@ -83,7 +83,7 @@ export default function MovementsPage() {
     e.preventDefault();
     createMutation.mutate({
       productId: formData.productId,
-      warehouseId: formData.warehouseId,
+      warehouseId: formData.warehouseId || warehouses[0]?.id,
       type: formData.movementType,
       quantity: parseInt(formData.quantity, 10),
       referenceId: formData.referenceId || undefined,
@@ -140,10 +140,7 @@ export default function MovementsPage() {
             <Select
               value={filters.warehouseId}
               onChange={(e) => setFilters({ ...filters, warehouseId: e.target.value })}
-              options={[
-                { value: '', label: 'All Warehouses' },
-                ...warehouses.map((w: any) => ({ value: w.id, label: w.name })),
-              ]}
+              options={warehouses.map((w: any) => ({ value: w.id, label: w.name }))}
               className="w-48"
             />
             <Select
@@ -232,18 +229,15 @@ export default function MovementsPage() {
               onChange={(e) => setFormData({ ...formData, productId: e.target.value })}
               options={[
                 { value: '', label: 'Select Product' },
-                ...products.map((p: any) => ({ value: p.id, label: `${p.sku} - ${p.name}` })),
+                ...products.map((p: any) => ({ value: p.id, label: p.name })),
               ]}
               required
             />
             <Select
               label="Warehouse"
-              value={formData.warehouseId}
+              value={formData.warehouseId || warehouses[0]?.id || ''}
               onChange={(e) => setFormData({ ...formData, warehouseId: e.target.value })}
-              options={[
-                { value: '', label: 'Select Warehouse' },
-                ...warehouses.map((w: any) => ({ value: w.id, label: w.name })),
-              ]}
+              options={warehouses.map((w: any) => ({ value: w.id, label: w.name }))}
               required
             />
           </div>
