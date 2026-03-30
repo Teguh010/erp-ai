@@ -453,10 +453,10 @@ export default function PurchaseOrdersPage() {
               </div>
             )}
 
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 items-end">
-              <div className="col-span-2 md:col-span-3 lg:col-span-2">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+              <div className="md:col-span-9">
                 <Select
-                  label="Bahan / item.."
+                  label="Bahan / item"
                   value={newItem.productId}
                   onChange={(e) => setNewItem({ ...newItem, productId: e.target.value })}
                   options={[
@@ -468,46 +468,56 @@ export default function PurchaseOrdersPage() {
                   ]}
                 />
               </div>
-              <Input
-                label="Qty (carton)"
-                type="number"
-                min={1}
-                value={newItem.quantity}
-                onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value })}
-                className="min-w-0"
-              />
-              <Input
-                label="Price / carton"
-                type="number"
-                min={0}
-                step="0.01"
-                value={newItem.unitPrice}
-                onChange={(e) => setNewItem({ ...newItem, unitPrice: e.target.value })}
-                className="min-w-0"
-              />
-              <Input
-                label="m³ / carton"
-                type="number"
-                min={0}
-                step="0.0001"
-                value={newItem.volumePerCartonM3}
-                onChange={(e) => setNewItem({ ...newItem, volumePerCartonM3: e.target.value })}
-                placeholder="optional"
-                className="min-w-0"
-              />
-              <Input
-                label="m³ total (manual)"
-                type="number"
-                min={0}
-                step="0.0001"
-                value={newItem.volumeAllCartonM3}
-                onChange={(e) => setNewItem({ ...newItem, volumeAllCartonM3: e.target.value })}
-                placeholder="auto if empty"
-                className="min-w-0"
-              />
-              <Button type="button" variant="outline" className="h-[42px]" onClick={addItem}>
-                Add line
-              </Button>
+              <div className="md:col-span-3">
+                <Input
+                  label="Qty (carton)"
+                  type="number"
+                  min={1}
+                  value={newItem.quantity}
+                  onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value })}
+                  className="min-w-0"
+                />
+              </div>
+              <div className="md:col-span-4">
+                <Input
+                  label="Price / carton"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={newItem.unitPrice}
+                  onChange={(e) => setNewItem({ ...newItem, unitPrice: e.target.value })}
+                  className="min-w-0"
+                />
+              </div>
+              <div className="md:col-span-3">
+                <Input
+                  label="m³ / carton"
+                  type="number"
+                  min={0}
+                  step="0.0001"
+                  value={newItem.volumePerCartonM3}
+                  onChange={(e) => setNewItem({ ...newItem, volumePerCartonM3: e.target.value })}
+                  placeholder="optional"
+                  className="min-w-0"
+                />
+              </div>
+              <div className="md:col-span-3">
+                <Input
+                  label="m³ total (manual)"
+                  type="number"
+                  min={0}
+                  step="0.0001"
+                  value={newItem.volumeAllCartonM3}
+                  onChange={(e) => setNewItem({ ...newItem, volumeAllCartonM3: e.target.value })}
+                  placeholder="auto if empty"
+                  className="min-w-0"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <Button type="button" variant="outline" className="h-[42px] w-full" onClick={addItem}>
+                  Add line
+                </Button>
+              </div>
             </div>
           </div>
 
