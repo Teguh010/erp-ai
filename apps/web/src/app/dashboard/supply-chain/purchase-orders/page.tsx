@@ -3,10 +3,8 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { formatDateTime, getStatusColor } from '@/lib/utils';
 import {
   Card,
-  CardHeader,
   CardContent,
   Button,
   Input,
@@ -18,7 +16,6 @@ import {
   TableRow,
   TableHead,
   TableCell,
-  Badge,
 } from '@/components/ui';
 import { Plus, Eye, Trash2 } from 'lucide-react';
 
@@ -26,7 +23,44 @@ interface OrderItem {
   productId: string;
   quantity: number;
   unitPrice: number;
+  volumePerCartonM3?: number;
+  /** Resolved total m³ for display */
+  volumeAllCartonM3?: number | null;
+  /** User typed total m³; if false, server derives from qty × per carton */
+  volumeAllManual: boolean;
 }
+
+function formatCurrency(amount: number) {
+  return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(amount);
+}
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString('id-ID');
+}
+
+function formatM3(n: number | null | undefined) {
+  if (n == null || Number.isNaN(n)) return '—';
+  return `${n.toLocaleString('id-ID', { maximumFractionDigits: 4 })} m³`;
+}
+
+/** Satu master `Product` dipakai untuk stok/penjualan/pembelian; di PO ditampilkan sebagai bahan/item + kategori & satuan. */
+function purchaseLineLabel(p: any | null | undefined, fallbackId?: string) {
+  if (!p) return fallbackId ?? '—';
+  const cat = p.category?.name;
+  const unit = p.unit?.name;
+  const name = p.name ?? '';
+  const core = cat ? `${cat} — ${name}` : name;
+  return unit ? `${core}` : core;
+}
+
+type POStatus = 'DRAFT' | 'APPROVED' | 'RECEIVED' | 'CANCELLED';
+
+const PO_STATUS_OPTIONS: { value: POStatus; label: string }[] = [
+  { value: 'DRAFT', label: 'Draft' },
+  { value: 'APPROVED', label: 'Approved' },
+  { value: 'RECEIVED', label: 'Received' },
+  { value: 'CANCELLED', label: 'Cancelled' },
+];
 
 export default function PurchaseOrdersPage() {
   const queryClient = useQueryClient();
@@ -35,11 +69,22 @@ export default function PurchaseOrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [formData, setFormData] = useState({
     supplierId: '',
+    title: '',
     expectedDelivery: '',
     notes: '',
     items: [] as OrderItem[],
   });
-  const [newItem, setNewItem] = useState({ productId: '', quantity: '', unitPrice: '' });
+  const [newItem, setNewItem] = useState({
+    productId: '',
+    quantity: '',
+    unitPrice: '',
+    volumePerCartonM3: '',
+    volumeAllCartonM3: '',
+  });
+  const [receiveModal, setReceiveModal] = useState<{
+    order: any;
+    warehouseId: string;
+  } | null>(null);
 
   const { data: ordersData, isLoading } = useQuery({
     queryKey: ['purchaseOrders'],
@@ -52,8 +97,8 @@ export default function PurchaseOrdersPage() {
   });
 
   const { data: productsData } = useQuery({
-    queryKey: ['products'],
-    queryFn: () => api.getProducts(),
+    queryKey: ['products', 'po-dropdown', 'procurement'],
+    queryFn: () => api.getProducts({ limit: 500, procurementItemsOnly: true }),
   });
 
   const { data: warehousesData } = useQuery({
@@ -61,7 +106,6 @@ export default function PurchaseOrdersPage() {
     queryFn: () => api.getWarehouses(),
   });
 
-  // Handle both plain array and paginated { data: { data: [], meta } } API shapes
   const orders = Array.isArray(ordersData?.data)
     ? ordersData.data
     : ordersData?.data?.data ?? [];
@@ -87,37 +131,70 @@ export default function PurchaseOrdersPage() {
   const updateStatusMutation = useMutation({
     mutationFn: ({ id, status, warehouseId }: { id: string; status: string; warehouseId?: string }) =>
       api.updatePurchaseOrderStatus(id, status, warehouseId),
-    onSuccess: () => {
+    onSuccess: (res: any) => {
+      const updated = res?.data;
       queryClient.invalidateQueries({ queryKey: ['purchaseOrders'] });
       queryClient.invalidateQueries({ queryKey: ['stock'] });
+      setReceiveModal(null);
+      setSelectedOrder((prev: any) =>
+        prev && updated && prev.id === updated.id ? { ...prev, ...updated } : prev
+      );
     },
   });
 
   const resetForm = () => {
     setFormData({
       supplierId: '',
+      title: '',
       expectedDelivery: '',
       notes: '',
       items: [],
     });
-    setNewItem({ productId: '', quantity: '', unitPrice: '' });
+    setNewItem({
+      productId: '',
+      quantity: '',
+      unitPrice: '',
+      volumePerCartonM3: '',
+      volumeAllCartonM3: '',
+    });
   };
 
   const addItem = () => {
-    if (newItem.productId && newItem.quantity && newItem.unitPrice) {
-      setFormData({
-        ...formData,
-        items: [
-          ...formData.items,
-          {
-            productId: newItem.productId,
-            quantity: parseInt(newItem.quantity),
-            unitPrice: parseFloat(newItem.unitPrice),
-          },
-        ],
-      });
-      setNewItem({ productId: '', quantity: '', unitPrice: '' });
-    }
+    if (!newItem.productId || !newItem.quantity || !newItem.unitPrice) return;
+
+    const qty = parseInt(newItem.quantity, 10);
+    const unitPrice = parseFloat(newItem.unitPrice);
+    const volPer =
+      newItem.volumePerCartonM3.trim() !== '' ? parseFloat(newItem.volumePerCartonM3) : undefined;
+    const volAllRaw = newItem.volumeAllCartonM3.trim();
+    const volumeAllManual = volAllRaw !== '';
+    const volAllParsed = volumeAllManual ? parseFloat(volAllRaw) : undefined;
+    if (volumeAllManual && (volAllParsed === undefined || Number.isNaN(volAllParsed))) return;
+
+    const derivedAll = volPer != null && !Number.isNaN(volPer) ? qty * volPer : undefined;
+    const volumeAllCartonM3 = volumeAllManual ? volAllParsed! : derivedAll ?? null;
+
+    setFormData({
+      ...formData,
+      items: [
+        ...formData.items,
+        {
+          productId: newItem.productId,
+          quantity: qty,
+          unitPrice,
+          volumePerCartonM3: volPer,
+          volumeAllCartonM3,
+          volumeAllManual,
+        },
+      ],
+    });
+    setNewItem({
+      productId: '',
+      quantity: '',
+      unitPrice: '',
+      volumePerCartonM3: '',
+      volumeAllCartonM3: '',
+    });
   };
 
   const removeItem = (index: number) => {
@@ -129,43 +206,79 @@ export default function PurchaseOrdersPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.supplierId && formData.items.length > 0) {
-      createMutation.mutate(formData);
-    }
-  };
+    if (!formData.supplierId || formData.items.length === 0) return;
 
-  const handleStatusChange = (order: any, newStatus: string) => {
-    if (newStatus === 'RECEIVED') {
-      const warehouseId = prompt('Enter warehouse ID to receive items:');
-      if (warehouseId && warehouses.find((w: any) => w.id === warehouseId)) {
-        updateStatusMutation.mutate({ id: order.id, status: newStatus, warehouseId });
-      } else if (warehouseId) {
-        alert('Invalid warehouse ID');
+    const items = formData.items.map((item) => {
+      const row: {
+        productId: string;
+        quantity: number;
+        unitPrice: number;
+        volumePerCartonM3?: number;
+        volumeAllCartonM3?: number;
+      } = {
+        productId: item.productId,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+      };
+      if (item.volumePerCartonM3 != null) {
+        row.volumePerCartonM3 = item.volumePerCartonM3;
       }
-    } else {
+      if (item.volumeAllManual && item.volumeAllCartonM3 != null) {
+        row.volumeAllCartonM3 = item.volumeAllCartonM3;
+      }
+      return row;
+    });
+
+    createMutation.mutate({
+      supplierId: formData.supplierId,
+      title: formData.title.trim() || undefined,
+      expectedDeliveryDate: formData.expectedDelivery
+        ? new Date(formData.expectedDelivery).toISOString()
+        : undefined,
+      notes: formData.notes.trim() || undefined,
+      items,
+    });
+  };
+
+  const proceedPOStatusChange = (order: any, newStatus: POStatus) => {
+    if (newStatus === order.status) return;
+
+    if (newStatus === 'CANCELLED') {
+      if (!confirm('Cancel this purchase order?')) return;
       updateStatusMutation.mutate({ id: order.id, status: newStatus });
+      return;
     }
+
+    if (newStatus === 'RECEIVED') {
+      if (!warehouses.length) {
+        alert('No warehouse configured. Add a warehouse before receiving.');
+        return;
+      }
+      const defaultWh = warehouses[0]?.id ?? '';
+      setReceiveModal({ order, warehouseId: defaultWh });
+      return;
+    }
+
+    if (newStatus === 'DRAFT') {
+      if (!confirm('Set status back to Draft?')) return;
+    }
+
+    updateStatusMutation.mutate({ id: order.id, status: newStatus });
   };
 
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, 'default' | 'info' | 'warning' | 'success' | 'danger'> = {
-      DRAFT: 'default',
-      SENT: 'info',
-      CONFIRMED: 'warning',
-      RECEIVED: 'success',
-      CANCELLED: 'danger',
-    };
-    return <Badge variant={variants[status] || 'default'}>{status}</Badge>;
+  const confirmReceive = () => {
+    if (!receiveModal?.warehouseId) return;
+    const valid = warehouses.some((w: any) => w.id === receiveModal.warehouseId);
+    if (!valid) return;
+    updateStatusMutation.mutate({
+      id: receiveModal.order.id,
+      status: 'RECEIVED',
+      warehouseId: receiveModal.warehouseId,
+    });
   };
 
-  const getNextStatus = (status: string): string | null => {
-    const flow: Record<string, string> = {
-      DRAFT: 'SENT',
-      SENT: 'CONFIRMED',
-      CONFIRMED: 'RECEIVED',
-    };
-    return flow[status] || null;
-  };
+  const poLabel = (order: any) =>
+    order.title?.trim() || `PO-${String(order.id).replace(/-/g, '').slice(0, 8).toUpperCase()}`;
 
   const totalAmount = formData.items.reduce(
     (sum, item) => sum + item.quantity * item.unitPrice,
@@ -177,7 +290,10 @@ export default function PurchaseOrdersPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Purchase Orders</h1>
-          <p className="text-gray-500">Manage supplier orders</p>
+          <p className="text-gray-500">
+            Dropdown PO hanya menampilkan <strong>Bahan Baku, Bahan Tambahan, dan Kemasan</strong> — bukan barang
+            jadi. 
+          </p>
         </div>
         <Button onClick={() => setIsModalOpen(true)}>
           <Plus className="w-4 h-4 mr-2" />
@@ -195,50 +311,48 @@ export default function PurchaseOrdersPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Order #</TableHead>
+                  <TableHead>PO</TableHead>
                   <TableHead>Supplier</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Total</TableHead>
-                  <TableHead>Expected Delivery</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>Expected delivery</TableHead>
+                  <TableHead className="text-right w-14">Detail</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {orders.map((order: any) => (
                   <TableRow key={order.id}>
-                    <TableCell className="font-mono text-sm">{order.orderNumber}</TableCell>
-                    <TableCell className="font-medium">{order.supplier?.name}</TableCell>
-                    <TableCell>{getStatusBadge(order.status)}</TableCell>
-                    <TableCell className="text-right">
-                      {formatCurrency(order.totalAmount)}
-                    </TableCell>
+                    <TableCell className="font-medium">{poLabel(order)}</TableCell>
+                    <TableCell>{order.supplier?.name}</TableCell>
                     <TableCell>
-                      {order.expectedDelivery ? formatDate(order.expectedDelivery) : '-'}
+                      <Select
+                        aria-label="Change PO status"
+                        value={order.status}
+                        onChange={(e) => proceedPOStatusChange(order, e.target.value as POStatus)}
+                        options={PO_STATUS_OPTIONS}
+                        className="min-w-[9.5rem] max-w-[11rem] text-sm py-1.5"
+                        disabled={
+                          updateStatusMutation.isPending &&
+                          updateStatusMutation.variables?.id === order.id
+                        }
+                      />
+                    </TableCell>
+                    <TableCell className="text-right">{formatCurrency(order.totalAmount)}</TableCell>
+                    <TableCell>
+                      {order.expectedDeliveryDate ? formatDate(order.expectedDeliveryDate) : '—'}
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedOrder(order);
-                            setIsDetailModalOpen(true);
-                          }}
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        {getNextStatus(order.status) && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              handleStatusChange(order, getNextStatus(order.status)!)
-                            }
-                          >
-                            {getNextStatus(order.status)}
-                          </Button>
-                        )}
-                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label="View PO detail"
+                        onClick={() => {
+                          setSelectedOrder(order);
+                          setIsDetailModalOpen(true);
+                        }}
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -255,7 +369,6 @@ export default function PurchaseOrdersPage() {
         </CardContent>
       </Card>
 
-      {/* Create Order Modal */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -269,85 +382,131 @@ export default function PurchaseOrdersPage() {
               value={formData.supplierId}
               onChange={(e) => setFormData({ ...formData, supplierId: e.target.value })}
               options={[
-                { value: '', label: 'Select Supplier' },
+                { value: '', label: 'Select supplier' },
                 ...suppliers.map((s: any) => ({ value: s.id, label: s.name })),
               ]}
               required
             />
             <Input
-              label="Expected Delivery"
+              label="PO title (optional)"
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              placeholder="e.g. Jersey order (PO SI)"
+            />
+            <Input
+              label="Expected delivery"
               type="date"
               value={formData.expectedDelivery}
               onChange={(e) => setFormData({ ...formData, expectedDelivery: e.target.value })}
             />
           </div>
 
-          <div className="border rounded-lg p-4">
-            <h4 className="font-medium mb-3">Order Items</h4>
+          <div className="border rounded-lg p-4 space-y-3">
+            <h4 className="font-medium">Line items</h4>
+            <p className="text-xs text-gray-500">
+              Qty = jumlah karton. Isi <strong>Volume all (m³)</strong> hanya jika ingin override; kosongkan
+              untuk menghitung qty × volume per karton. Daftar item = bahan/kemasan (bukan barang jadi).
+            </p>
 
             {formData.items.length > 0 && (
-              <div className="mb-4 space-y-2">
-                {formData.items.map((item, index) => {
-                  const product = products.find((p: any) => p.id === item.productId);
-                  return (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between p-2 bg-gray-50 rounded"
-                    >
-                      <span>{product?.name || item.productId}</span>
-                      <div className="flex items-center gap-4">
-                        <span className="text-sm text-gray-500">
-                          {item.quantity} x {formatCurrency(item.unitPrice)}
-                        </span>
-                        <span className="font-medium">
-                          {formatCurrency(item.quantity * item.unitPrice)}
-                        </span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeItem(index)}
-                        >
-                          <Trash2 className="w-4 h-4 text-red-500" />
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })}
-                <div className="text-right font-semibold pt-2 border-t">
+              <div className="mb-4 overflow-x-auto border rounded-md">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Bahan / item</TableHead>
+                      <TableHead className="text-right">Qty (carton)</TableHead>
+                      <TableHead className="text-right">Price / carton</TableHead>
+                      <TableHead className="text-right">m³ / carton</TableHead>
+                      <TableHead className="text-right">m³ total</TableHead>
+                      <TableHead className="text-right">Total (IDR)</TableHead>
+                      <TableHead className="w-10" />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {formData.items.map((item, index) => {
+                      const product = products.find((p: any) => p.id === item.productId);
+                      return (
+                        <TableRow key={index}>
+                          <TableCell className="font-medium">
+                            {purchaseLineLabel(product, item.productId)}
+                          </TableCell>
+                          <TableCell className="text-right">{item.quantity}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(item.unitPrice)}</TableCell>
+                          <TableCell className="text-right">{formatM3(item.volumePerCartonM3)}</TableCell>
+                          <TableCell className="text-right">{formatM3(item.volumeAllCartonM3)}</TableCell>
+                          <TableCell className="text-right font-medium">
+                            {formatCurrency(item.quantity * item.unitPrice)}
+                          </TableCell>
+                          <TableCell>
+                            <Button type="button" variant="ghost" size="sm" onClick={() => removeItem(index)}>
+                              <Trash2 className="w-4 h-4 text-red-500" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+                <div className="text-right font-semibold px-3 py-2 border-t bg-gray-50">
                   Total: {formatCurrency(totalAmount)}
                 </div>
               </div>
             )}
 
-            <div className="flex gap-2">
-              <Select
-                value={newItem.productId}
-                onChange={(e) => setNewItem({ ...newItem, productId: e.target.value })}
-                options={[
-                  { value: '', label: 'Select Product' },
-                  ...products.map((p: any) => ({ value: p.id, label: `${p.sku} - ${p.name}` })),
-                ]}
-                className="flex-1"
-              />
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 items-end">
+              <div className="col-span-2 md:col-span-3 lg:col-span-2">
+                <Select
+                  label="Bahan / item.."
+                  value={newItem.productId}
+                  onChange={(e) => setNewItem({ ...newItem, productId: e.target.value })}
+                  options={[
+                    { value: '', label: 'Pilih bahan atau item…' },
+                    ...products.map((p: any) => ({
+                      value: p.id,
+                      label: purchaseLineLabel(p),
+                    })),
+                  ]}
+                />
+              </div>
               <Input
+                label="Qty (carton)"
                 type="number"
-                placeholder="Qty"
+                min={1}
                 value={newItem.quantity}
                 onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value })}
-                className="w-20"
-                min={1}
+                className="min-w-0"
               />
               <Input
+                label="Price / carton"
                 type="number"
-                placeholder="Price"
+                min={0}
+                step="0.01"
                 value={newItem.unitPrice}
                 onChange={(e) => setNewItem({ ...newItem, unitPrice: e.target.value })}
-                className="w-28"
-                min={0}
+                className="min-w-0"
               />
-              <Button type="button" variant="outline" onClick={addItem}>
-                Add
+              <Input
+                label="m³ / carton"
+                type="number"
+                min={0}
+                step="0.0001"
+                value={newItem.volumePerCartonM3}
+                onChange={(e) => setNewItem({ ...newItem, volumePerCartonM3: e.target.value })}
+                placeholder="optional"
+                className="min-w-0"
+              />
+              <Input
+                label="m³ total (manual)"
+                type="number"
+                min={0}
+                step="0.0001"
+                value={newItem.volumeAllCartonM3}
+                onChange={(e) => setNewItem({ ...newItem, volumeAllCartonM3: e.target.value })}
+                placeholder="auto if empty"
+                className="min-w-0"
+              />
+              <Button type="button" variant="outline" className="h-[42px]" onClick={addItem}>
+                Add line
               </Button>
             </div>
           </div>
@@ -356,7 +515,7 @@ export default function PurchaseOrdersPage() {
             label="Notes"
             value={formData.notes}
             onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-            placeholder="Additional notes..."
+            placeholder="Additional notes…"
           />
 
           <div className="flex justify-end gap-3 pt-4">
@@ -365,20 +524,18 @@ export default function PurchaseOrdersPage() {
             </Button>
             <Button
               type="submit"
-              isLoading={createMutation.isPending}
-              disabled={!formData.supplierId || formData.items.length === 0}
+              disabled={!formData.supplierId || formData.items.length === 0 || createMutation.isPending}
             >
-              Create Order
+              {createMutation.isPending ? 'Creating…' : 'Create order'}
             </Button>
           </div>
         </form>
       </Modal>
 
-      {/* Detail Modal */}
       <Modal
         isOpen={isDetailModalOpen}
         onClose={() => setIsDetailModalOpen(false)}
-        title={`Order Details - ${selectedOrder?.orderNumber}`}
+        title={`${selectedOrder ? poLabel(selectedOrder) : ''} — detail`}
         size="lg"
       >
         {selectedOrder && (
@@ -389,43 +546,65 @@ export default function PurchaseOrdersPage() {
                 <p className="font-medium">{selectedOrder.supplier?.name}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Status</p>
-                {getStatusBadge(selectedOrder.status)}
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Total Amount</p>
+                <p className="text-sm text-gray-500">Total amount</p>
                 <p className="font-medium">{formatCurrency(selectedOrder.totalAmount)}</p>
               </div>
+              {selectedOrder.title && (
+                <div className="col-span-2">
+                  <p className="text-sm text-gray-500">Title</p>
+                  <p className="font-medium">{selectedOrder.title}</p>
+                </div>
+              )}
               <div>
-                <p className="text-sm text-gray-500">Expected Delivery</p>
+                <p className="text-sm text-gray-500">Expected delivery</p>
                 <p className="font-medium">
-                  {selectedOrder.expectedDelivery
-                    ? formatDate(selectedOrder.expectedDelivery)
-                    : '-'}
+                  {selectedOrder.expectedDeliveryDate
+                    ? formatDate(selectedOrder.expectedDeliveryDate)
+                    : '—'}
                 </p>
               </div>
+              <div className="col-span-2">
+                <Select
+                  label="Status"
+                  value={selectedOrder.status}
+                  onChange={(e) => proceedPOStatusChange(selectedOrder, e.target.value as POStatus)}
+                  options={PO_STATUS_OPTIONS}
+                  disabled={
+                    updateStatusMutation.isPending &&
+                    updateStatusMutation.variables?.id === selectedOrder.id
+                  }
+                />
+              </div>
+              {selectedOrder.notes && (
+                <div className="col-span-2">
+                  <p className="text-sm text-gray-500">Notes</p>
+                  <p className="text-gray-800 whitespace-pre-wrap">{selectedOrder.notes}</p>
+                </div>
+              )}
             </div>
 
             {selectedOrder.items && selectedOrder.items.length > 0 && (
-              <div>
+              <div className="overflow-x-auto">
                 <p className="text-sm text-gray-500 mb-2">Items</p>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Product</TableHead>
-                      <TableHead className="text-right">Qty</TableHead>
-                      <TableHead className="text-right">Unit Price</TableHead>
-                      <TableHead className="text-right">Total</TableHead>
+                      <TableHead>Bahan / item</TableHead>
+                      <TableHead className="text-right">Qty (carton)</TableHead>
+                      <TableHead className="text-right">Price / carton</TableHead>
+                      <TableHead className="text-right">m³ / carton</TableHead>
+                      <TableHead className="text-right">m³ total</TableHead>
+                      <TableHead className="text-right">Line total</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {selectedOrder.items.map((item: any) => (
                       <TableRow key={item.id}>
-                        <TableCell>{item.product?.name}</TableCell>
+                        <TableCell>{purchaseLineLabel(item.product)}</TableCell>
                         <TableCell className="text-right">{item.quantity}</TableCell>
-                        <TableCell className="text-right">
-                          {formatCurrency(item.unitPrice)}
-                        </TableCell>
+                        <TableCell className="text-right">{formatCurrency(item.unitPrice)}</TableCell>
+                        <TableCell className="text-right">{formatM3(item.volumePerCartonM3)}</TableCell>
+                        <TableCell className="text-right">{formatM3(item.volumeAllCartonM3)}</TableCell>
                         <TableCell className="text-right font-medium">
                           {formatCurrency(item.quantity * item.unitPrice)}
                         </TableCell>
@@ -437,14 +616,42 @@ export default function PurchaseOrdersPage() {
             )}
 
             <div className="pt-2 text-xs text-gray-400">
-              <p>Warehouse IDs for receiving:</p>
-              <ul className="mt-1 space-y-1">
-                {warehouses.map((w: any) => (
-                  <li key={w.id}>
-                    {w.name}: <code className="bg-gray-100 px-1 rounded">{w.id}</code>
-                  </li>
-                ))}
-              </ul>
+              <p>Receiving uses the warehouse selected when you set status to Received.</p>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      <Modal
+        isOpen={!!receiveModal}
+        onClose={() => setReceiveModal(null)}
+        title="Receive goods — select warehouse"
+        size="md"
+      >
+        {receiveModal && (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              Stock will be increased for each line item in this PO at the chosen warehouse.
+            </p>
+            <Select
+              label="Warehouse"
+              value={receiveModal.warehouseId}
+              onChange={(e) =>
+                setReceiveModal((m) => (m ? { ...m, warehouseId: e.target.value } : null))
+              }
+              options={warehouses.map((w: any) => ({ value: w.id, label: w.name }))}
+            />
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => setReceiveModal(null)}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                disabled={!receiveModal.warehouseId || updateStatusMutation.isPending}
+                onClick={confirmReceive}
+              >
+                {updateStatusMutation.isPending ? 'Updating…' : 'Confirm received'}
+              </Button>
             </div>
           </div>
         )}

@@ -6,7 +6,7 @@
 
 ## 📋 Executive Summary
 
-This ERP system is built with **enterprise-grade architecture** following industry best practices including SOLID principles, Domain-Driven Design (DDD), and cloud-native patterns. The implementation showcases expertise in:
+This ERP system is built with a **Modular Monolith architecture** following industry best practices including SOLID principles, Domain-Driven Design (DDD), and cloud-native patterns. This approach ensures high cohesion and low coupling within modules while maintaining simplicity in deployment and data integrity.
 
 - **Backend**: NestJS (Node.js), TypeScript, Prisma ORM
 - **Database**: MySQL (AWS RDS) with optimized indexing
@@ -366,6 +366,47 @@ async fulfillOrder(orderId: string) {
 - ✅ ACID compliance for critical operations
 - ✅ Automatic rollback on any failure
 - ✅ Prevents partial updates and data corruption
+
+---
+
+### 11. AI Integration & RAG Architecture
+
+**Problem**: Traditional ERPs are passive repositories; users need proactive insights, natural language querying, and context-aware assistance.
+
+**Solution**: Integrated a RAG-powered AI Agent using Groq (Llama 3.3) and LangChain.
+
+```typescript
+// Context-aware AI Agent Service
+@Injectable()
+export class AiAgentService {
+  async chat(question: string) {
+    // 1. Semantic search for ERP documentation
+    const ragContext = await this.ragService.searchSimilarChunks(question);
+    
+    // 2. Real-time DB state summary
+    const dbContext = await this.getRelevantDbContext(question);
+    
+    // 3. Hybrid prompt generation
+    const prompt = RAG_PROMPT.replace('{context}', ragContext)
+                             .replace('{db}', dbContext)
+                             .replace('{question}', question);
+    
+    return this.groq.generate(prompt);
+  }
+}
+```
+
+**Key Capabilities**:
+- **Semantic RAG**: Custom vector storage in MySQL with cosine similarity for technical manuals.
+- **Text-to-SQL**: Safe, read-only natural language interface (SELECT only) with schema awareness.
+- **Domain Intelligence**: Specialized prompts for Inventory Analysis and Production Planning.
+- **Graceful Degradation**: System remains functional with fallback keyword search if AI APIs are unavailable.
+
+**Impact**:
+- ✅ Reduced time-to-insight for complex inventory queries
+- ✅ Lowered technical barrier for non-expert users via natural language
+- ✅ Contextual support directly linked to system documentation
+- ✅ Secure-by-design AI integration with strict read-only DB access
 
 ---
 
@@ -745,6 +786,10 @@ export class StorageService {
 | **Auth** | JWT + Passport | Authentication |
 | **Docs** | Swagger/OpenAPI | API documentation |
 | **Security** | Helmet, Throttler | Security hardening |
+| **Logging** | Structured Logging | Observability & auditing |
+| **AI LLM** | Groq (Llama 3.3) | Reasoning & language processing |
+| **AI Embed**| OpenAI (text-embedding-3)| Vector search & RAG |
+| **AI Framework**| LangChain | Agent & RAG workflows |
 | **Storage** | AWS S3 | File storage & static assets |
 | **Compute** | AWS EC2 + Auto Scaling | Application hosting |
 | **Load Balancer** | AWS ALB | Traffic distribution & SSL |
@@ -758,13 +803,14 @@ export class StorageService {
 
 This implementation demonstrates:
 
-1. **Scalability** - Stateless design, cursor pagination, caching, auto-scaling EC2
+1. **Scalability** - Modular Monolith design (ready for microservices if needed), stateless design, cursor pagination, caching, auto-scaling EC2
 2. **Reliability** - Graceful degradation, health checks, transactions, Multi-AZ deployment
 3. **Security** - Rate limiting, audit trails, input validation, AWS WAF, IAM best practices
 4. **Maintainability** - Clean architecture, type safety, comprehensive tests
 5. **Observability** - Structured logging, health endpoints, audit system, CloudWatch
 6. **DevOps** - Automated CI/CD pipeline, infrastructure as code, containerization
 7. **Cloud-Native** - AWS managed services, horizontal scaling, high availability
+8. **Intelligence** - RAG-powered chat, Text-to-SQL, and contextual domain analysis
 
 ---
 
@@ -777,7 +823,7 @@ This implementation demonstrates:
 - **Database**: MySQL, PostgreSQL, Prisma ORM, query optimization
 - **Cloud (AWS)**: Aurora, RDS, EC2, S3, ElastiCache, ALB, IAM, VPC
 - **DevOps**: GitHub Actions, Docker, CI/CD pipelines, zero-downtime deployments
-- **Architecture**: Microservices, DDD, SOLID principles, 12-factor app methodology
+- **Architecture**: Modular Monolith, DDD, SOLID principles, 12-factor app methodology
 
 ### Demonstrated Impact
 - Reduced API response time by 70% through caching and query optimization

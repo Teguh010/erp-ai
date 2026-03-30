@@ -1,5 +1,14 @@
-import { IsString, IsNumber, IsOptional, IsEnum, IsArray, ValidateNested, IsDateString } from 'class-validator';
-import { Type } from 'class-transformer';
+import {
+  IsString,
+  IsNumber,
+  IsOptional,
+  IsEnum,
+  IsArray,
+  ValidateNested,
+  IsDateString,
+  ValidateIf,
+} from 'class-validator';
+import { Type, Transform } from 'class-transformer';
 import { SalesOrderStatus } from '@prisma/client';
 
 export class CreateSalesOrderItemDto {
@@ -38,6 +47,42 @@ export class UpdateSalesOrderStatusDto {
   @IsOptional()
   @IsDateString()
   receivedDate?: string;
+
+  @IsOptional()
+  @IsDateString()
+  productReviewDate?: string;
+
+  @IsOptional()
+  @IsDateString()
+  poReceivedDate?: string;
+}
+
+export class PatchSalesOrderMilestonesDto {
+  @IsOptional()
+  @Transform(({ value }) => (value === '' || value === null ? undefined : value))
+  @IsDateString()
+  shippingDate?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => (value === '' || value === null ? undefined : value))
+  @IsDateString()
+  receivedDate?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => (value === '' || value === null ? undefined : value))
+  @IsDateString()
+  productReviewDate?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => (value === '' || value === null ? undefined : value))
+  @IsDateString()
+  poReceivedDate?: string;
+
+  /** Set to ISO date string, or `null` in JSON to clear */
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null && v !== '' && v !== undefined)
+  @IsDateString()
+  expectedDeliveryDate?: string | null;
 }
 
 export class CreateCustomerDto {

@@ -1,12 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { formatDateTime, getStatusColor } from '@/lib/utils';
 import {
   Card,
-  CardHeader,
   CardContent,
   Button,
   Input,
@@ -18,7 +16,6 @@ import {
   TableRow,
   TableHead,
   TableCell,
-  Badge,
 } from '@/components/ui';
 import { Plus, Eye, Trash2 } from 'lucide-react';
 
@@ -27,6 +24,31 @@ interface OrderItem {
   quantity: number;
   price: number;
 }
+
+type SalesOrderStatus = 'PENDING' | 'PROCESSING' | 'SHIPPED' | 'COMPLETED' | 'CANCELLED';
+
+function toInputDate(iso?: string | null): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toISOString().slice(0, 10);
+}
+
+function todayInput(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function toISOFromDateInput(ymd: string): string {
+  return new Date(ymd).toISOString();
+}
+
+const SALES_STATUS_OPTIONS: { value: SalesOrderStatus; label: string }[] = [
+  { value: 'PENDING', label: 'Pending' },
+  { value: 'PROCESSING', label: 'Processing' },
+  { value: 'SHIPPED', label: 'Shipped' },
+  { value: 'COMPLETED', label: 'Completed' },
+  { value: 'CANCELLED', label: 'Cancelled' },
+];
 
 export default function SalesOrdersPage() {
   const queryClient = useQueryClient();
@@ -39,6 +61,18 @@ export default function SalesOrdersPage() {
     items: [] as OrderItem[],
   });
   const [newItem, setNewItem] = useState({ productId: '', quantity: '', price: '' });
+  const [transitionModal, setTransitionModal] = useState<{
+    order: any;
+    nextStatus: SalesOrderStatus;
+  } | null>(null);
+  const [transitionDateInput, setTransitionDateInput] = useState('');
+  const [milestoneDraft, setMilestoneDraft] = useState({
+    expectedDeliveryDate: '',
+    shippingDate: '',
+    receivedDate: '',
+    productReviewDate: '',
+    poReceivedDate: '',
+  });
 
   const { data: ordersData, isLoading } = useQuery({
     queryKey: ['salesOrders'],
@@ -69,15 +103,54 @@ export default function SalesOrdersPage() {
   });
 
   const updateStatusMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: string }) =>
-      api.updateSalesOrderStatus(id, { status }),
-    onSuccess: () => {
+    mutationFn: (vars: {
+      id: string;
+      status: SalesOrderStatus;
+      shippingDate?: string;
+      receivedDate?: string;
+      productReviewDate?: string;
+      poReceivedDate?: string;
+    }) => {
+      const { id, ...body } = vars;
+      return api.updateSalesOrderStatus(id, body);
+    },
+    onSuccess: (res: any) => {
+      const updated = res?.data;
       queryClient.invalidateQueries({ queryKey: ['salesOrders'] });
       queryClient.invalidateQueries({ queryKey: ['stock'] });
       queryClient.invalidateQueries({ queryKey: ['movements'] });
-      setIsDetailModalOpen(false);
+      setTransitionModal(null);
+      setSelectedOrder((prev: any) =>
+        prev && updated && prev.id === updated.id ? { ...prev, ...updated } : prev
+      );
     },
   });
+
+  const patchMilestonesMutation = useMutation({
+    mutationFn: (vars: { id: string } & Record<string, string | undefined>) => {
+      const { id, ...body } = vars;
+      return api.patchSalesOrderMilestones(id, body);
+    },
+    onSuccess: (res: any) => {
+      const updated = res?.data;
+      queryClient.invalidateQueries({ queryKey: ['salesOrders'] });
+      setSelectedOrder((prev: any) =>
+        prev && updated && prev.id === updated.id ? { ...prev, ...updated } : prev
+      );
+    },
+  });
+
+  useEffect(() => {
+    if (selectedOrder && isDetailModalOpen) {
+      setMilestoneDraft({
+        expectedDeliveryDate: toInputDate(selectedOrder.expectedDeliveryDate),
+        shippingDate: toInputDate(selectedOrder.shippingDate),
+        receivedDate: toInputDate(selectedOrder.receivedDate),
+        productReviewDate: toInputDate(selectedOrder.productReviewDate),
+        poReceivedDate: toInputDate(selectedOrder.poReceivedDate),
+      });
+    }
+  }, [selectedOrder, isDetailModalOpen]);
 
   const resetForm = () => {
     setFormData({
@@ -123,30 +196,152 @@ export default function SalesOrdersPage() {
     }
   };
 
-  const handleStatusChange = (order: any, newStatus: string) => {
-    if (confirm(`Are you sure you want to change the status to ${newStatus}?`)) {
-      updateStatusMutation.mutate({ id: order.id, status: newStatus });
+  const openStatusTransition = (order: any, nextStatus: SalesOrderStatus) => {
+    if (nextStatus === 'PROCESSING') {
+      setTransitionDateInput(order.poReceivedDate ? toInputDate(order.poReceivedDate) : todayInput());
+    } else if (nextStatus === 'SHIPPED') {
+      setTransitionDateInput(order.shippingDate ? toInputDate(order.shippingDate) : todayInput());
+    } else if (nextStatus === 'COMPLETED') {
+      setTransitionDateInput(order.receivedDate ? toInputDate(order.receivedDate) : '');
+    } else {
+      setTransitionDateInput('');
+    }
+    setTransitionModal({ order, nextStatus });
+  };
+
+  const confirmStatusTransition = () => {
+    if (!transitionModal) return;
+    const { order, nextStatus } = transitionModal;
+    const payload: {
+      id: string;
+      status: SalesOrderStatus;
+      shippingDate?: string;
+      receivedDate?: string;
+      poReceivedDate?: string;
+    } = { id: order.id, status: nextStatus };
+
+    if (nextStatus === 'PROCESSING') {
+      if (!transitionDateInput) return;
+      payload.poReceivedDate = toISOFromDateInput(transitionDateInput);
+    } else if (nextStatus === 'SHIPPED') {
+      if (!transitionDateInput) return;
+      payload.shippingDate = toISOFromDateInput(transitionDateInput);
+    } else if (nextStatus === 'COMPLETED' && transitionDateInput) {
+      payload.receivedDate = toISOFromDateInput(transitionDateInput);
+    }
+
+    updateStatusMutation.mutate(payload);
+  };
+
+  const proceedStatusChange = (order: any, newStatus: SalesOrderStatus) => {
+    if (newStatus === order.status) return;
+
+    if (newStatus === 'CANCELLED') {
+      if (!confirm('Yakin ingin membatalkan order ini?')) return;
+      updateStatusMutation.mutate({ id: order.id, status: 'CANCELLED' });
+      return;
+    }
+
+    if (newStatus === 'PENDING') {
+      if (!confirm('Ubah status kembali ke Menunggu?')) return;
+      updateStatusMutation.mutate({ id: order.id, status: 'PENDING' });
+      return;
+    }
+
+    if (newStatus === 'PROCESSING') {
+      if (order.poReceivedDate) {
+        updateStatusMutation.mutate({ id: order.id, status: 'PROCESSING' });
+      } else {
+        openStatusTransition(order, 'PROCESSING');
+      }
+      return;
+    }
+
+    if (newStatus === 'SHIPPED') {
+      if (order.shippingDate) {
+        updateStatusMutation.mutate({ id: order.id, status: 'SHIPPED' });
+      } else {
+        openStatusTransition(order, 'SHIPPED');
+      }
+      return;
+    }
+
+    if (newStatus === 'COMPLETED') {
+      openStatusTransition(order, 'COMPLETED');
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, 'default' | 'info' | 'warning' | 'success' | 'danger'> = {
-      PENDING: 'default',
-      PROCESSING: 'warning',
-      SHIPPED: 'info',
-      COMPLETED: 'success',
-      CANCELLED: 'danger',
-    };
-    return <Badge variant={variants[status] || 'default'}>{status}</Badge>;
+  const transitionModalLabel = (): { title: string; description: string; inputLabel: string; optional?: boolean } => {
+    if (!transitionModal) {
+      return { title: '', description: '', inputLabel: '' };
+    }
+    const { nextStatus } = transitionModal;
+    if (nextStatus === 'PROCESSING') {
+      return {
+        title: 'Move to Processing',
+        description:
+          'Use when the buyer’s purchase order is received. The date records when the PO was received.',
+        inputLabel: 'PO received date',
+      };
+    }
+    if (nextStatus === 'SHIPPED') {
+      return {
+        title: 'Mark as Shipped',
+        description: 'Stock is deducted when the order ships. Set the actual shipping date.',
+        inputLabel: 'Shipping date',
+      };
+    }
+    if (nextStatus === 'COMPLETED') {
+      return {
+        title: 'Mark as Completed',
+        description: 'Optional: record when product was received back from the buyer, if applicable.',
+        inputLabel: 'Received from buyer',
+        optional: true,
+      };
+    }
+    return { title: 'Ubah status', description: '', inputLabel: '' };
   };
 
-  const getNextStatus = (status: string): string | null => {
-    const flow: Record<string, string> = {
-      PENDING: 'PROCESSING',
-      PROCESSING: 'SHIPPED',
-      SHIPPED: 'COMPLETED',
-    };
-    return flow[status] || null;
+  const saveMilestoneDates = () => {
+    if (!selectedOrder) return;
+    const orig = selectedOrder;
+    const payload: {
+      expectedDeliveryDate?: string | null;
+      shippingDate?: string;
+      receivedDate?: string;
+      productReviewDate?: string;
+      poReceivedDate?: string;
+    } = {};
+
+    const origExpected = toInputDate(orig.expectedDeliveryDate);
+    if (milestoneDraft.expectedDeliveryDate !== origExpected) {
+      if (milestoneDraft.expectedDeliveryDate) {
+        payload.expectedDeliveryDate = toISOFromDateInput(milestoneDraft.expectedDeliveryDate);
+      } else {
+        payload.expectedDeliveryDate = null;
+      }
+    }
+
+    if (milestoneDraft.shippingDate !== toInputDate(orig.shippingDate) && milestoneDraft.shippingDate) {
+      payload.shippingDate = toISOFromDateInput(milestoneDraft.shippingDate);
+    }
+    if (milestoneDraft.receivedDate !== toInputDate(orig.receivedDate) && milestoneDraft.receivedDate) {
+      payload.receivedDate = toISOFromDateInput(milestoneDraft.receivedDate);
+    }
+    if (
+      milestoneDraft.productReviewDate !== toInputDate(orig.productReviewDate) &&
+      milestoneDraft.productReviewDate
+    ) {
+      payload.productReviewDate = toISOFromDateInput(milestoneDraft.productReviewDate);
+    }
+    if (milestoneDraft.poReceivedDate !== toInputDate(orig.poReceivedDate) && milestoneDraft.poReceivedDate) {
+      payload.poReceivedDate = toISOFromDateInput(milestoneDraft.poReceivedDate);
+    }
+
+    if (Object.keys(payload).length === 0) {
+      return;
+    }
+    patchMilestonesMutation.mutate({ id: orig.id, ...payload });
   };
 
   const getFormatCurrency = (amount: number) => {
@@ -170,7 +365,9 @@ export default function SalesOrdersPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Sales Orders</h1>
-          <p className="text-gray-500">Manage client orders and shipments</p>
+          <p className="text-gray-500">
+            PO received → Processing; ship with a shipping date; milestones (review, returns) in order details.
+          </p>
         </div>
         <Button onClick={() => setIsModalOpen(true)}>
           <Plus className="w-4 h-4 mr-2" />
@@ -193,51 +390,63 @@ export default function SalesOrdersPage() {
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Total Amount</TableHead>
                   <TableHead>Expected Delivery</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>PO received</TableHead>
+                  <TableHead>Shipping</TableHead>
+                  <TableHead className="text-right w-14">Detail</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {orders.map((order: any) => (
                   <TableRow key={order.id}>
-                    <TableCell className="font-mono text-sm">{order.orderNumber}</TableCell>
+                    <TableCell className="font-mono text-sm uppercase">
+                      {order.id.substring(0, 8)}
+                    </TableCell>
                     <TableCell className="font-medium">{order.customer?.name}</TableCell>
-                    <TableCell>{getStatusBadge(order.status)}</TableCell>
+                    <TableCell>
+                      <Select
+                        aria-label="Ubah status order"
+                        value={order.status}
+                        onChange={(e) =>
+                          proceedStatusChange(order, e.target.value as SalesOrderStatus)
+                        }
+                        options={SALES_STATUS_OPTIONS}
+                        className="min-w-[9.5rem] max-w-[11rem] text-sm py-1.5"
+                        disabled={
+                          updateStatusMutation.isPending &&
+                          updateStatusMutation.variables?.id === order.id
+                        }
+                      />
+                    </TableCell>
                     <TableCell className="text-right">
                       {getFormatCurrency(order.totalAmount)}
                     </TableCell>
                     <TableCell>
                       {order.expectedDeliveryDate ? getFormatDate(order.expectedDeliveryDate) : '-'}
                     </TableCell>
+                    <TableCell className="text-sm text-gray-700">
+                      {order.poReceivedDate ? getFormatDate(order.poReceivedDate) : '—'}
+                    </TableCell>
+                    <TableCell className="text-sm text-gray-700">
+                      {order.shippingDate ? getFormatDate(order.shippingDate) : '—'}
+                    </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedOrder(order);
-                            setIsDetailModalOpen(true);
-                          }}
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        {getNextStatus(order.status) && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              handleStatusChange(order, getNextStatus(order.status)!)
-                            }
-                          >
-                            Mark {getNextStatus(order.status)}
-                          </Button>
-                        )}
-                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedOrder(order);
+                          setIsDetailModalOpen(true);
+                        }}
+                        aria-label="Lihat detail order"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
                 {orders.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-gray-500 py-8">
+                    <TableCell colSpan={8} className="text-center text-gray-500 py-12">
                       No sales orders found
                     </TableCell>
                   </TableRow>
@@ -326,7 +535,7 @@ export default function SalesOrdersPage() {
                 }}
                 options={[
                   { value: '', label: 'Select Product' },
-                  ...products.map((p: any) => ({ value: p.id, label: `${p.sku || p.id} - ${p.name}` })),
+                  ...products.map((p: any) => ({ value: p.id, label: `${p.sku || 'N/A'} - ${p.name}` })),
                 ]}
                 className="flex-1"
               />
@@ -370,7 +579,7 @@ export default function SalesOrdersPage() {
       <Modal
         isOpen={isDetailModalOpen}
         onClose={() => setIsDetailModalOpen(false)}
-        title={`Order Details - ${selectedOrder?.orderNumber}`}
+        title={`Order Details - ${selectedOrder?.id?.substring(0, 8).toUpperCase()}`}
         size="lg"
       >
         {selectedOrder && (
@@ -381,29 +590,82 @@ export default function SalesOrdersPage() {
                 <p className="font-medium">{selectedOrder.customer?.name}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Status</p>
-                {getStatusBadge(selectedOrder.status)}
-              </div>
-              <div>
                 <p className="text-sm text-gray-500">Total Amount</p>
                 <p className="font-medium">{getFormatCurrency(selectedOrder.totalAmount)}</p>
               </div>
-              <div>
-                <p className="text-sm text-gray-500">Expected Delivery</p>
-                <p className="font-medium">
-                  {selectedOrder.expectedDeliveryDate
-                    ? getFormatDate(selectedOrder.expectedDeliveryDate)
-                    : '-'}
-                </p>
+              <div className="col-span-2">
+                <Select
+                  label="Status"
+                  value={selectedOrder.status}
+                  onChange={(e) =>
+                    proceedStatusChange(selectedOrder, e.target.value as SalesOrderStatus)
+                  }
+                  options={SALES_STATUS_OPTIONS}
+                  disabled={
+                    updateStatusMutation.isPending &&
+                    updateStatusMutation.variables?.id === selectedOrder.id
+                  }
+                />
               </div>
-               <div>
-                <p className="text-sm text-gray-500">Shipping Date</p>
-                <p className="font-medium">
-                  {selectedOrder.shippingDate
-                    ? getFormatDate(selectedOrder.shippingDate)
-                    : '-'}
-                </p>
+            </div>
+
+            <div className="border rounded-lg p-4 space-y-3 bg-gray-50/80">
+              <h4 className="font-medium text-gray-900">Jadwal &amp; tanggal milestone</h4>
+              <p className="text-xs text-gray-500">
+                Sesuaikan rencana pengiriman dan tanggal milestone tanpa mengubah status. Hanya bagian yang
+                berubah yang disimpan.
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  label="Expected delivery (rencana)"
+                  type="date"
+                  value={milestoneDraft.expectedDeliveryDate}
+                  onChange={(e) =>
+                    setMilestoneDraft((d) => ({ ...d, expectedDeliveryDate: e.target.value }))
+                  }
+                />
+                <Input
+                  label="PO received"
+                  type="date"
+                  value={milestoneDraft.poReceivedDate}
+                  onChange={(e) =>
+                    setMilestoneDraft((d) => ({ ...d, poReceivedDate: e.target.value }))
+                  }
+                />
+                <Input
+                  label="Shipping"
+                  type="date"
+                  value={milestoneDraft.shippingDate}
+                  onChange={(e) =>
+                    setMilestoneDraft((d) => ({ ...d, shippingDate: e.target.value }))
+                  }
+                />
+                <Input
+                  label="Product review"
+                  type="date"
+                  value={milestoneDraft.productReviewDate}
+                  onChange={(e) =>
+                    setMilestoneDraft((d) => ({ ...d, productReviewDate: e.target.value }))
+                  }
+                />
+                <Input
+                  label="Received from buyer"
+                  type="date"
+                  value={milestoneDraft.receivedDate}
+                  onChange={(e) =>
+                    setMilestoneDraft((d) => ({ ...d, receivedDate: e.target.value }))
+                  }
+                />
               </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={patchMilestonesMutation.isPending}
+                onClick={saveMilestoneDates}
+              >
+                {patchMilestonesMutation.isPending ? 'Menyimpan…' : 'Simpan jadwal & milestone'}
+              </Button>
             </div>
 
             {selectedOrder.items && selectedOrder.items.length > 0 && (
@@ -435,15 +697,43 @@ export default function SalesOrdersPage() {
                 </Table>
               </div>
             )}
-             
-            <div className="flex justify-end pt-4 gap-2">
-               {getNextStatus(selectedOrder.status) && (
-                 <Button
-                   onClick={() => handleStatusChange(selectedOrder, getNextStatus(selectedOrder.status)!)}
-                 >
-                   Update Status to {getNextStatus(selectedOrder.status)}
-                 </Button>
-               )}
+          </div>
+        )}
+      </Modal>
+
+      <Modal
+        isOpen={!!transitionModal}
+        onClose={() => setTransitionModal(null)}
+        title={transitionModalLabel().title}
+        size="md"
+      >
+        {transitionModal && (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">{transitionModalLabel().description}</p>
+            {['PROCESSING', 'SHIPPED', 'COMPLETED'].includes(transitionModal.nextStatus) && (
+              <Input
+                label={transitionModalLabel().inputLabel}
+                type="date"
+                value={transitionDateInput}
+                onChange={(e) => setTransitionDateInput(e.target.value)}
+                required={!transitionModalLabel().optional}
+              />
+            )}
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => setTransitionModal(null)}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                disabled={
+                  updateStatusMutation.isPending ||
+                  (transitionModal.nextStatus === 'PROCESSING' && !transitionDateInput) ||
+                  (transitionModal.nextStatus === 'SHIPPED' && !transitionDateInput)
+                }
+                onClick={confirmStatusTransition}
+              >
+                {updateStatusMutation.isPending ? 'Updating…' : 'Confirm'}
+              </Button>
             </div>
           </div>
         )}

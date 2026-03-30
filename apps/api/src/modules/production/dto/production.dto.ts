@@ -102,18 +102,50 @@ export class PurchaseOrderItemDto {
   @IsUUID()
   productId: string;
 
+  /** Number of cartons */
   @IsInt()
   @Min(1)
   @Type(() => Number)
   quantity: number;
 
+  /** Price per carton (IDR) */
+  @IsNumber()
+  @Min(0)
   @Type(() => Number)
   unitPrice: number;
+
+  /** m³ per carton; optional */
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  volumePerCartonM3?: number;
+
+  /**
+   * Total m³ for the line. Omit to auto-calculate as quantity × volumePerCartonM3 when per-carton is set.
+   */
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  volumeAllCartonM3?: number;
 }
 
 export class CreatePurchaseOrderDto {
   @IsUUID()
   supplierId: string;
+
+  @IsOptional()
+  @IsString()
+  title?: string;
+
+  @IsOptional()
+  @IsDateString()
+  expectedDeliveryDate?: string;
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
 
   @IsArray()
   @ValidateNested({ each: true })

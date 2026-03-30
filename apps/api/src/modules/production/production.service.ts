@@ -300,9 +300,8 @@ export class ProductionService {
 
   // ==================== PURCHASE ORDER ====================
   async createPurchaseOrder(dto: CreatePurchaseOrderDto) {
-    const { supplierId, items } = dto;
+    const { supplierId, items, title, expectedDeliveryDate, notes } = dto;
 
-    // Calculate total
     const totalAmount = items.reduce(
       (sum, item) => sum + item.quantity * item.unitPrice,
       0,
@@ -312,12 +311,24 @@ export class ProductionService {
       data: {
         supplierId,
         totalAmount,
+        title: title ?? null,
+        expectedDeliveryDate: expectedDeliveryDate ? new Date(expectedDeliveryDate) : null,
+        notes: notes ?? null,
         items: {
-          create: items.map((item) => ({
-            productId: item.productId,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-          })),
+          create: items.map((item) => {
+            const derivedVolAll =
+              item.volumePerCartonM3 != null ? item.quantity * item.volumePerCartonM3 : null;
+            const volumeAllCartonM3 =
+              item.volumeAllCartonM3 != null ? item.volumeAllCartonM3 : derivedVolAll;
+
+            return {
+              productId: item.productId,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              volumePerCartonM3: item.volumePerCartonM3 ?? null,
+              volumeAllCartonM3,
+            };
+          }),
         },
       },
       include: {

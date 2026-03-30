@@ -135,21 +135,38 @@ export class InventoryService {
   }
 
   async getAllProducts(query: StockQueryDto) {
-    const { page = 1, limit = 20, search, cursor } = query;
+    const {
+      page = 1,
+      limit = 20,
+      search,
+      cursor,
+      procurementItemsOnly,
+      finishedGoodsOnly,
+    } = query;
 
-    // Use cursor-based pagination if cursor is provided
     if (cursor) {
-      return this.getProductsWithCursor(cursor, limit, search);
+      return this.getProductsWithCursor(
+        cursor,
+        limit,
+        search,
+        procurementItemsOnly,
+        finishedGoodsOnly,
+      );
     }
 
-    // Fallback to offset-based pagination
     const skip = (page - 1) * limit;
-    const cacheKey = `${CachePrefix.PRODUCTS_LIST}${page}:${limit}:${search || ''}`;
+    const pFlag = procurementItemsOnly ? '1' : '0';
+    const fFlag = finishedGoodsOnly ? '1' : '0';
+    const cacheKey = `${CachePrefix.PRODUCTS_LIST}${page}:${limit}:${search || ''}:proc=${pFlag}:fin=${fFlag}`;
 
     return this.cache.getOrSet(
       cacheKey,
       async () => {
-        const where = this.buildProductSearchWhere(search);
+        const where = this.buildProductListWhere(
+          search,
+          procurementItemsOnly,
+          finishedGoodsOnly,
+        );
 
         const [products, total] = await Promise.all([
           this.prisma.product.findMany({
@@ -189,8 +206,14 @@ export class InventoryService {
     cursor: string | undefined,
     limit: number = 20,
     search?: string,
+    procurementItemsOnly?: boolean,
+    finishedGoodsOnly?: boolean,
   ) {
-    const where = this.buildProductSearchWhere(search);
+    const where = this.buildProductListWhere(
+      search,
+      procurementItemsOnly,
+      finishedGoodsOnly,
+    );
     const cursorQuery = CursorPagination.buildCursorQuery<{ id: string }>(cursor);
 
     const products = await this.prisma.product.findMany({
@@ -210,15 +233,36 @@ export class InventoryService {
     return CursorPagination.buildResult(products, limit);
   }
 
-  /**
-   * Build search where clause for products
-   */
-  private buildProductSearchWhere(search?: string): Prisma.ProductWhereInput | undefined {
-    if (!search?.trim()) return undefined;
+  /** Kategori yang boleh dibeli lewat PO (nama harus sama dengan seed). */
+  private static readonly PROCUREMENT_CATEGORY_NAMES = [
+    'Bahan Baku',
+    'Bahan Tambahan',
+    'Kemasan',
+  ] as const;
 
-    return {
-      name: { contains: search.trim() },
-    };
+  private buildProductListWhere(
+    search?: string,
+    procurementItemsOnly?: boolean,
+    finishedGoodsOnly?: boolean,
+  ): Prisma.ProductWhereInput {
+    if (procurementItemsOnly && finishedGoodsOnly) {
+      return { id: { in: [] } };
+    }
+    const parts: Prisma.ProductWhereInput[] = [];
+    if (search?.trim()) {
+      parts.push({ name: { contains: search.trim() } });
+    }
+    if (procurementItemsOnly) {
+      parts.push({
+        category: { name: { in: [...InventoryService.PROCUREMENT_CATEGORY_NAMES] } },
+      });
+    }
+    if (finishedGoodsOnly) {
+      parts.push({ category: { name: 'Barang Jadi' } });
+    }
+    if (parts.length === 0) return {};
+    if (parts.length === 1) return parts[0]!;
+    return { AND: parts };
   }
 
   async getProductById(id: string) {
@@ -264,12 +308,55 @@ export class InventoryService {
 
   // ==================== STOCK ====================
   async getStock(query: StockQueryDto) {
-    const { warehouseId, productId, page = 1, limit = 20 } = query;
+    const {
+      warehouseId,
+      productId,
+      page = 1,
+      limit = 20,
+      procurementItemsOnly,
+      finishedGoodsOnly,
+      search,
+    } = query;
+
+    if (procurementItemsOnly && finishedGoodsOnly) {
+      return {
+        data: [],
+        meta: {
+          total: 0,
+          page,
+          limit,
+          totalPages: 0,
+        },
+      };
+    }
+
     const skip = (page - 1) * limit;
 
-    const where: Prisma.StockWhereInput = {};
-    if (warehouseId) where.warehouseId = warehouseId;
-    if (productId) where.productId = productId;
+    const conditions: Prisma.StockWhereInput[] = [];
+    if (warehouseId) conditions.push({ warehouseId });
+    if (productId) conditions.push({ productId });
+    if (search?.trim()) {
+      conditions.push({ product: { name: { contains: search.trim() } } });
+    }
+    if (procurementItemsOnly) {
+      conditions.push({
+        product: {
+          category: { name: { in: [...InventoryService.PROCUREMENT_CATEGORY_NAMES] } },
+        },
+      });
+    }
+    if (finishedGoodsOnly) {
+      conditions.push({
+        product: { category: { name: 'Barang Jadi' } },
+      });
+    }
+
+    const where: Prisma.StockWhereInput =
+      conditions.length === 0
+        ? {}
+        : conditions.length === 1
+          ? conditions[0]!
+          : { AND: conditions };
 
     const [stocks, total] = await Promise.all([
       this.prisma.stock.findMany({

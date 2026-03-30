@@ -152,19 +152,13 @@ export default function BOMPage() {
           {Object.values(groupedBOMs).map((group: any) => (
             <Card key={group.product?.id}>
               <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span>{group.product?.name}</span>
-                  <span className="text-sm font-normal text-gray-500">
-                    {group.product?.sku}
-                  </span>
-                </CardTitle>
+                <CardTitle>{group.product?.name}</CardTitle>
               </CardHeader>
               <CardContent className="p-0">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Material</TableHead>
-                      <TableHead>SKU</TableHead>
                       <TableHead className="text-right">Quantity Required</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -173,7 +167,6 @@ export default function BOMPage() {
                     {group.materials.map((row: any) => (
                       <TableRow key={row.itemId}>
                         <TableCell className="font-medium">{row.material?.name}</TableCell>
-                        <TableCell className="font-mono text-xs">{row.material?.sku}</TableCell>
                         <TableCell className="text-right">{row.quantity}</TableCell>
                         <TableCell className="text-right">
                           <Button
@@ -219,7 +212,7 @@ export default function BOMPage() {
             onChange={(e) => setFormData({ ...formData, productId: e.target.value })}
             options={[
               { value: '', label: 'Select Product' },
-              ...products.map((p: any) => ({ value: p.id, label: `${p.sku} - ${p.name}` })),
+              ...products.map((p: any) => ({ value: p.id, label: p.name })),
             ]}
             required
           />
@@ -262,7 +255,7 @@ export default function BOMPage() {
                   { value: '', label: 'Select Material' },
                   ...products
                     .filter((p: any) => p.id !== formData.productId)
-                    .map((p: any) => ({ value: p.id, label: `${p.sku} - ${p.name}` })),
+                    .map((p: any) => ({ value: p.id, label: p.name })),
                 ]}
                 className="flex-1"
               />

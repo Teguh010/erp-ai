@@ -1,6 +1,11 @@
 import { Controller, Get, Post, Body, Param, Patch, Req, UseGuards } from '@nestjs/common';
 import { SalesService } from './sales.service';
-import { CreateSalesOrderDto, UpdateSalesOrderStatusDto, CreateCustomerDto } from './dto/sales.dto';
+import {
+  CreateSalesOrderDto,
+  UpdateSalesOrderStatusDto,
+  CreateCustomerDto,
+  PatchSalesOrderMilestonesDto,
+} from './dto/sales.dto';
 import { AuthGuard } from '@nestjs/passport';
 import type { Request } from 'express';
 
@@ -42,5 +47,10 @@ export class SalesController {
   ) {
     const userId = (req.user as any).sub;
     return this.salesService.updateSalesOrderStatus(id, updateDto, userId);
+  }
+
+  @Patch('orders/:id/milestones')
+  patchSalesOrderMilestones(@Param('id') id: string, @Body() dto: PatchSalesOrderMilestonesDto) {
+    return this.salesService.patchSalesOrderMilestones(id, dto);
   }
 }

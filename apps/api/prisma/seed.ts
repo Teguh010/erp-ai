@@ -133,9 +133,29 @@ async function main() {
     categoryMap[name] = cat.id;
   }
 
-  // ==================== PRODUCTS ====================
+  // ==================== PRODUCTS (bahan/kemasan untuk PO + barang jadi) ====================
   console.log('Creating products...');
-  const products = [
+
+  const procurementRows: {
+    name: string;
+    category: string;
+    unit: string;
+    purchasePrice: number;
+    salePrice?: number | null;
+  }[] = [
+    { name: 'Tepung Terigu', category: 'Bahan Baku', unit: 'Kg', purchasePrice: 12500 },
+    { name: 'Cabe Merah', category: 'Bahan Baku', unit: 'Kg', purchasePrice: 35000 },
+    { name: 'Bawang Putih', category: 'Bahan Baku', unit: 'Kg', purchasePrice: 42000 },
+    { name: 'Tempe', category: 'Bahan Baku', unit: 'Kg', purchasePrice: 18000 },
+    { name: 'Garam', category: 'Bahan Baku', unit: 'Kg', purchasePrice: 6000 },
+    { name: 'Gula Pasir', category: 'Bahan Baku', unit: 'Kg', purchasePrice: 15000 },
+    { name: 'Minyak Goreng', category: 'Bahan Baku', unit: 'Liter', purchasePrice: 18000 },
+    { name: 'Kecap Manis', category: 'Bahan Tambahan', unit: 'Liter', purchasePrice: 48000 },
+    { name: 'Plastik Klip Kemasan', category: 'Kemasan', unit: 'Pcs', purchasePrice: 850 },
+    { name: 'Kardus Box', category: 'Kemasan', unit: 'Pcs', purchasePrice: 4500 },
+  ];
+
+  const finishedRows = [
     {
       name: 'Sambel Bawang',
       categoryId: categoryMap['Barang Jadi'],
@@ -152,10 +172,24 @@ async function main() {
     },
   ];
 
+  const materialMap: Record<string, string> = {};
+  for (const row of procurementRows) {
+    const p = await prisma.product.create({
+      data: {
+        name: row.name,
+        categoryId: categoryMap[row.category],
+        unitId: unitMap[row.unit],
+        purchasePrice: row.purchasePrice,
+        salePrice: row.salePrice ?? null,
+      },
+    });
+    materialMap[row.name] = p.id;
+  }
+
   const productMap: Record<string, string> = {};
-  for (const product of products) {
-    const p = await prisma.product.create({ data: product });
-    productMap[product.name] = p.id;
+  for (const row of finishedRows) {
+    const p = await prisma.product.create({ data: row });
+    productMap[row.name] = p.id;
   }
 
   // ==================== INITIAL STOCK ====================
@@ -163,12 +197,53 @@ async function main() {
 
   console.log('Creating initial stock...');
   if (gudangJadi) {
-    for (const [name, productId] of Object.entries(productMap)) {
+    const qtyRaw = 40;
+    const qtyFinished = 100;
+    for (const productId of Object.values(materialMap)) {
       await prisma.stock.create({
-        data: { productId, warehouseId: gudangJadi, quantity: 100, reservedQty: 0 },
+        data: { productId, warehouseId: gudangJadi, quantity: qtyRaw, reservedQty: 0 },
+      });
+    }
+    for (const productId of Object.values(productMap)) {
+      await prisma.stock.create({
+        data: { productId, warehouseId: gudangJadi, quantity: qtyFinished, reservedQty: 0 },
       });
     }
   }
+
+  // ==================== BOM ====================
+  console.log('Creating BOM (resep → barang jadi)...');
+  await prisma.billOfMaterials.create({
+    data: {
+      productId: productMap['Sambel Bawang']!,
+      items: {
+        create: [
+          { materialId: materialMap['Bawang Putih']!, quantity: 8 },
+          { materialId: materialMap['Cabe Merah']!, quantity: 5 },
+          { materialId: materialMap['Minyak Goreng']!, quantity: 4 },
+          { materialId: materialMap['Garam']!, quantity: 1 },
+          { materialId: materialMap['Gula Pasir']!, quantity: 2 },
+          { materialId: materialMap['Kecap Manis']!, quantity: 2 },
+          { materialId: materialMap['Plastik Klip Kemasan']!, quantity: 120 },
+        ],
+      },
+    },
+  });
+
+  await prisma.billOfMaterials.create({
+    data: {
+      productId: productMap['Krupuk Tempe']!,
+      items: {
+        create: [
+          { materialId: materialMap['Tempe']!, quantity: 12 },
+          { materialId: materialMap['Tepung Terigu']!, quantity: 6 },
+          { materialId: materialMap['Minyak Goreng']!, quantity: 10 },
+          { materialId: materialMap['Garam']!, quantity: 1 },
+          { materialId: materialMap['Kardus Box']!, quantity: 25 },
+        ],
+      },
+    },
+  });
 
   // ==================== SUPPLIERS ====================
   const suppliers = [
@@ -243,7 +318,7 @@ async function main() {
   console.log('   Gudang: warehouse@erp.com / password123');
   console.log('   Produksi: production@erp.com / password123');
   console.log('');
-  console.log('📦 Produk: Sambel Bawang, Krupuk Tempe (satuan: Karton)');
+  console.log('📦 Barang jadi: Sambel Bawang, Krupuk Tempe · Bahan/kemasan: tepung, kecap, cabe, dll. · BOM terisi');
   console.log('');
 }
 

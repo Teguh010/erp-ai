@@ -5,8 +5,9 @@ import {
   IsUUID,
   Min,
   IsEnum,
+  IsBoolean,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 
 export class CreateWarehouseDto {
   @IsString()
@@ -133,6 +134,18 @@ export class StockQueryDto {
   @IsInt()
   @Min(1)
   limit?: number = 20;
+
+  /** Hanya Bahan Baku, Bahan Tambahan, Kemasan (selaras seed UMKM — untuk PO). */
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true' || value === '1')
+  @IsBoolean()
+  procurementItemsOnly?: boolean;
+
+  /** Hanya kategori Barang Jadi (produk siap jual). */
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true' || value === '1')
+  @IsBoolean()
+  finishedGoodsOnly?: boolean;
 }
 
 export class LowStockQueryDto {

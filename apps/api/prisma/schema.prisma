@@ -160,14 +160,17 @@ model Supplier {
 }
 
 model PurchaseOrder {
-  id          String   @id @default(uuid())
-  supplierId  String
-  status      POStatus @default(DRAFT)
-  totalAmount Float
-  createdAt   DateTime @default(now())
+  id                   String    @id @default(uuid())
+  supplierId           String
+  status               POStatus  @default(DRAFT)
+  totalAmount          Float
+  title                String?
+  expectedDeliveryDate DateTime?
+  notes                String?   @db.Text
+  createdAt            DateTime  @default(now())
 
-  supplier    Supplier @relation(fields: [supplierId], references: [id])
-  items       PurchaseOrderItem[]
+  supplier Supplier            @relation(fields: [supplierId], references: [id])
+  items    PurchaseOrderItem[]
 
   @@index([supplierId])
   @@index([status])
@@ -182,14 +185,16 @@ enum POStatus {
 }
 
 model PurchaseOrderItem {
-  id              String @id @default(uuid())
-  purchaseOrderId String
-  productId       String
-  quantity        Int
-  unitPrice       Float
+  id                 String  @id @default(uuid())
+  purchaseOrderId    String
+  productId          String
+  quantity           Int
+  unitPrice          Float
+  volumePerCartonM3  Float?
+  volumeAllCartonM3  Float?
 
-  order           PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
-  product         Product       @relation(fields: [productId], references: [id])
+  order   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  product Product       @relation(fields: [productId], references: [id])
 
   @@index([purchaseOrderId])
   @@index([productId])
@@ -282,6 +287,8 @@ model SalesOrder {
   expectedDeliveryDate DateTime?
   shippingDate         DateTime?
   receivedDate         DateTime?
+  productReviewDate    DateTime?
+  poReceivedDate       DateTime?
   createdAt            DateTime      @default(now())
 
   customer Customer        @relation(fields: [customerId], references: [id])

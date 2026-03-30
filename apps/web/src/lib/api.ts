@@ -109,7 +109,14 @@ class ApiClient {
   }
 
   // Inventory - Products
-  async getProducts(params?: { categoryId?: string; search?: string }) {
+  async getProducts(params?: {
+    categoryId?: string;
+    search?: string;
+    limit?: number;
+    page?: number;
+    procurementItemsOnly?: boolean;
+    finishedGoodsOnly?: boolean;
+  }) {
     const response = await this.client.get('/inventory/products', { params });
     return response.data;
   }
@@ -147,7 +154,15 @@ class ApiClient {
   }
 
   // Inventory - Stock
-  async getStock(params?: { productId?: string; warehouseId?: string }) {
+  async getStock(params?: {
+    productId?: string;
+    warehouseId?: string;
+    search?: string;
+    limit?: number;
+    page?: number;
+    procurementItemsOnly?: boolean;
+    finishedGoodsOnly?: boolean;
+  }) {
     const response = await this.client.get('/inventory/stock', { params });
     return response.data;
   }
@@ -210,9 +225,25 @@ class ApiClient {
       status: 'PENDING' | 'PROCESSING' | 'SHIPPED' | 'COMPLETED' | 'CANCELLED';
       shippingDate?: string;
       receivedDate?: string;
+      productReviewDate?: string;
+      poReceivedDate?: string;
     }
   ) {
     const response = await this.client.patch(`/sales/orders/${id}/status`, data);
+    return response.data;
+  }
+
+  async patchSalesOrderMilestones(
+    id: string,
+    data: {
+      expectedDeliveryDate?: string | null;
+      shippingDate?: string;
+      receivedDate?: string;
+      productReviewDate?: string;
+      poReceivedDate?: string;
+    }
+  ) {
+    const response = await this.client.patch(`/sales/orders/${id}/milestones`, data);
     return response.data;
   }
 
@@ -390,9 +421,16 @@ class ApiClient {
 
   async createPurchaseOrder(data: {
     supplierId: string;
-    expectedDelivery?: string;
+    title?: string;
+    expectedDeliveryDate?: string;
     notes?: string;
-    items: { productId: string; quantity: number; unitPrice: number }[];
+    items: {
+      productId: string;
+      quantity: number;
+      unitPrice: number;
+      volumePerCartonM3?: number;
+      volumeAllCartonM3?: number;
+    }[];
   }) {
     const response = await this.client.post('/production/purchase-orders', data);
     return response.data;

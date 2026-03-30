@@ -127,6 +127,9 @@ export const createTestPurchaseOrder = (overrides = {}) => ({
   supplierId: 'supplier-1',
   status: POStatus.DRAFT,
   totalAmount: 1000,
+  title: null,
+  expectedDeliveryDate: null,
+  notes: null,
   createdAt: new Date(),
   ...overrides,
 });

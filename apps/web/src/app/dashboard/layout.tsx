@@ -32,9 +32,11 @@ const navigation: NavItem[] = [
     href: '/dashboard/inventory',
     icon: <Package className="w-5 h-5" />,
     children: [
-      { name: 'Products', href: '/dashboard/inventory/products' },
+      { name: 'Produk jadi', href: '/dashboard/inventory/products/finished' },
+      { name: 'Bahan & kemasan', href: '/dashboard/inventory/products/materials' },
       { name: 'Warehouses', href: '/dashboard/inventory/warehouses' },
-      { name: 'Stock', href: '/dashboard/inventory/stock' },
+      { name: 'Stok produk jadi', href: '/dashboard/inventory/stock/finished' },
+      { name: 'Stok bahan', href: '/dashboard/inventory/stock/materials' },
       { name: 'Movements', href: '/dashboard/inventory/movements' },
     ],
   },

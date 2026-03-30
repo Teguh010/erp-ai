@@ -2,7 +2,12 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../../database/prisma.service';
 import { MovementType } from '../inventory/dto';
 import { InventoryService } from '../inventory/inventory.service';
-import { CreateSalesOrderDto, UpdateSalesOrderStatusDto, CreateCustomerDto } from './dto/sales.dto';
+import {
+  CreateSalesOrderDto,
+  UpdateSalesOrderStatusDto,
+  CreateCustomerDto,
+  PatchSalesOrderMilestonesDto,
+} from './dto/sales.dto';
 import { SalesOrderStatus } from '@prisma/client';
 
 @Injectable()
@@ -106,11 +111,62 @@ export class SalesService {
     if (updateDto.receivedDate) {
       dataToUpdate.receivedDate = new Date(updateDto.receivedDate);
     }
+    if (updateDto.productReviewDate) {
+      dataToUpdate.productReviewDate = new Date(updateDto.productReviewDate);
+    }
+    if (updateDto.poReceivedDate) {
+      dataToUpdate.poReceivedDate = new Date(updateDto.poReceivedDate);
+    }
 
     return this.prisma.salesOrder.update({
       where: { id },
       data: dataToUpdate,
-      include: { customer: true, items: true },
+      include: {
+        customer: true,
+        items: { include: { product: true } },
+      },
+    });
+  }
+
+  async patchSalesOrderMilestones(id: string, dto: PatchSalesOrderMilestonesDto) {
+    await this.getSalesOrderById(id);
+
+    const hasAny = [
+      dto.shippingDate,
+      dto.receivedDate,
+      dto.productReviewDate,
+      dto.poReceivedDate,
+      dto.expectedDeliveryDate,
+    ].some(v => v !== undefined);
+
+    if (!hasAny) {
+      throw new BadRequestException('At least one field must be provided');
+    }
+
+    const data: Record<string, Date | null> = {};
+    if (dto.expectedDeliveryDate !== undefined) {
+      data.expectedDeliveryDate =
+        dto.expectedDeliveryDate === null || dto.expectedDeliveryDate === ''
+          ? null
+          : new Date(dto.expectedDeliveryDate);
+    }
+    if (dto.shippingDate !== undefined) {
+      data.shippingDate = new Date(dto.shippingDate);
+    }
+    if (dto.receivedDate !== undefined) {
+      data.receivedDate = new Date(dto.receivedDate);
+    }
+    if (dto.productReviewDate !== undefined) {
+      data.productReviewDate = new Date(dto.productReviewDate);
+    }
+    if (dto.poReceivedDate !== undefined) {
+      data.poReceivedDate = new Date(dto.poReceivedDate);
+    }
+
+    return this.prisma.salesOrder.update({
+      where: { id },
+      data,
+      include: { customer: true, items: { include: { product: true } } },
     });
   }
 }
