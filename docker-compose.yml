@@ -1,15 +1,14 @@
 services:
   db:
-    image: postgres:15-alpine
+    image: mysql:8
     restart: always
     environment:
-      POSTGRES_USER: erp_user
-      POSTGRES_PASSWORD: erp_password
-      POSTGRES_DB: erp_db
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: erp_db
     ports:
-      - "5432:5432"
+      - "3306:3306"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - mysql_data:/var/lib/mysql
 
   redis:
     image: redis:alpine
@@ -18,4 +17,4 @@ services:
       - "6379:6379"
 
 volumes:
-  postgres_data:
+  mysql_data:
