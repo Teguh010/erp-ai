@@ -7,6 +7,15 @@ import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 
+/** Comma-separated list in CORS_ORIGIN, e.g. https://app.netlify.app,http://localhost:3000 */
+function parseCorsOrigins(): string[] {
+  return (
+    process.env.CORS_ORIGIN?.split(',')
+      .map((o) => o.trim())
+      .filter(Boolean) ?? []
+  );
+}
+
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule);
@@ -78,14 +87,29 @@ async function bootstrap() {
     },
   });
 
-  // Enable CORS (supports comma-separated origins in CORS_ORIGIN)
-  const corsOrigins = process.env.CORS_ORIGIN?.split(',')
-    .map((origin) => origin.trim())
-    .filter(Boolean);
+  // CORS: whitelist from CORS_ORIGIN (comma-separated). Each response must send exactly one
+  // Access-Control-Allow-Origin value (the request's Origin if allowed), not a concatenated list.
+  const allowedOrigins = parseCorsOrigins();
 
   app.enableCors({
-    origin: corsOrigins && corsOrigins.length > 0 ? corsOrigins : '*',
     credentials: true,
+    origin: (
+      origin: string | undefined,
+      callback: (err: Error | null, allow?: boolean) => void,
+    ) => {
+      // No Origin: non-browser clients (curl, Postman), or same-origin navigation
+      if (!origin) {
+        return callback(null, true);
+      }
+      if (allowedOrigins.length === 0) {
+        // No whitelist: allow any origin (dev); cors reflects the request Origin
+        return callback(null, true);
+      }
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(null, false);
+    },
   });
 
   // Global pipes
