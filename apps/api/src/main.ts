@@ -78,9 +78,13 @@ async function bootstrap() {
     },
   });
 
-  // Enable CORS
+  // Enable CORS (supports comma-separated origins in CORS_ORIGIN)
+  const corsOrigins = process.env.CORS_ORIGIN?.split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
   app.enableCors({
-    origin: process.env.CORS_ORIGIN || '*',
+    origin: corsOrigins && corsOrigins.length > 0 ? corsOrigins : '*',
     credentials: true,
   });
 
