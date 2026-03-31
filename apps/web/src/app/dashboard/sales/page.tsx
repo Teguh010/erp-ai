@@ -127,7 +127,14 @@ export default function SalesOrdersPage() {
   });
 
   const patchMilestonesMutation = useMutation({
-    mutationFn: (vars: { id: string } & Record<string, string | undefined>) => {
+    mutationFn: (vars: {
+      id: string;
+      expectedDeliveryDate?: string | null;
+      shippingDate?: string;
+      receivedDate?: string;
+      productReviewDate?: string;
+      poReceivedDate?: string;
+    }) => {
       const { id, ...body } = vars;
       return api.patchSalesOrderMilestones(id, body);
     },
