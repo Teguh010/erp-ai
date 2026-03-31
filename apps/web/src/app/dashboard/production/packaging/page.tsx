@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { formatDate, formatCurrency } from '@/lib/utils';
@@ -32,8 +32,17 @@ export default function PackagingReportPage() {
     tenagaPerempuan: '',
     tenagaLaki: '',
     hasilPackaging: '',
-    hpp: '',
   });
+
+  /** HPP = hasil packaging ÷ (tenaga perempuan + tenaga laki-laki) */
+  const computedHpp = useMemo(() => {
+    const hasil = formData.hasilPackaging ? parseInt(formData.hasilPackaging, 10) : 0;
+    const p = formData.tenagaPerempuan ? parseInt(formData.tenagaPerempuan, 10) : 0;
+    const l = formData.tenagaLaki ? parseInt(formData.tenagaLaki, 10) : 0;
+    const totalTenaga = p + l;
+    if (totalTenaga <= 0 || hasil < 0) return 0;
+    return hasil / totalTenaga;
+  }, [formData.hasilPackaging, formData.tenagaPerempuan, formData.tenagaLaki]);
 
   const { data: reportsData, isLoading } = useQuery({
     queryKey: ['packagingReports', filterFrom, filterTo],
@@ -80,7 +89,6 @@ export default function PackagingReportPage() {
         tenagaPerempuan: String(report.tenagaPerempuan ?? ''),
         tenagaLaki: String(report.tenagaLaki ?? ''),
         hasilPackaging: String(report.hasilPackaging ?? ''),
-        hpp: String(report.hpp ?? ''),
       });
     } else {
       setEditingId(null);
@@ -90,7 +98,6 @@ export default function PackagingReportPage() {
         tenagaPerempuan: '',
         tenagaLaki: '',
         hasilPackaging: '',
-        hpp: '',
       });
     }
     setIsModalOpen(true);
@@ -109,7 +116,7 @@ export default function PackagingReportPage() {
       tenagaPerempuan: formData.tenagaPerempuan ? parseInt(formData.tenagaPerempuan, 10) : 0,
       tenagaLaki: formData.tenagaLaki ? parseInt(formData.tenagaLaki, 10) : 0,
       hasilPackaging: formData.hasilPackaging ? parseInt(formData.hasilPackaging, 10) : 0,
-      hpp: formData.hpp ? parseFloat(formData.hpp) : 0,
+      hpp: computedHpp,
     };
     if (editingId) {
       updateMutation.mutate({ id: editingId, data: payload });
@@ -124,7 +131,7 @@ export default function PackagingReportPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Laporan Packaging</h1>
           <p className="text-gray-500">
-            Aktivitas produksi: tenaga, hasil packaging, dan HPP
+            HPP dihitung otomatis: hasil packaging ÷ (tenaga perempuan + tenaga laki-laki)
           </p>
         </div>
         <Button onClick={() => openModal()}>
@@ -291,16 +298,22 @@ export default function PackagingReportPage() {
                 setFormData({ ...formData, hasilPackaging: e.target.value })
               }
             />
-            <Input
-              label="HPP (Rp)"
-              type="number"
-              min={0}
-              step="0.01"
-              value={formData.hpp}
-              onChange={(e) =>
-                setFormData({ ...formData, hpp: e.target.value })
-              }
-            />
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-gray-700">
+                HPP (Rp)
+              </label>
+              <div className="flex h-10 w-full items-center rounded-md border border-gray-200 bg-gray-50 px-3 text-sm text-gray-900">
+                {new Intl.NumberFormat('id-ID', {
+                  style: 'currency',
+                  currency: 'IDR',
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 2,
+                }).format(computedHpp)}
+              </div>
+              <p className="text-xs text-gray-500">
+                Hasil ÷ (tenaga P + tenaga L)
+              </p>
+            </div>
           </div>
           <div className="flex justify-end gap-3 pt-4">
             <Button type="button" variant="outline" onClick={closeModal}>

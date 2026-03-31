@@ -84,11 +84,11 @@ export default function LoginPage() {
 
           <div className="mt-6 pt-4 border-t border-gray-200">
             <p className="text-xs text-gray-400 text-center mb-2">Demo accounts:</p>
-            {/* <div className="text-xs text-gray-500 space-y-1">
+            <div className="text-xs text-gray-500 space-y-1">
               <p><strong>Admin:</strong> admin@erp.com / password123</p>
               <p><strong>Warehouse:</strong> warehouse@erp.com / password123</p>
               <p><strong>Production:</strong> production@erp.com / password123</p>
-            </div> */}
+            </div>
           </div>
         </CardContent>
       </Card>
