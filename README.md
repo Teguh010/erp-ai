@@ -10,6 +10,8 @@ Monorepo ERP for manufacturing (e.g. snack food plants) with **Inventory**, **Pr
 
 Deeper architecture notes: [`TECHNICAL_DOCUMENTATION.md`](./TECHNICAL_DOCUMENTATION.md).
 
+**Employee onboarding (ID):** [Full guide](./docs/NEW_EMPLOYEE_GUIDE.md) · [1-page cheat sheet](./docs/ONBOARDING_CHEATSHEET.md) · [Export to PDF for Trello](./docs/HOW_TO_EXPORT_PDF.md)
+
 ---
 
 ## Prerequisites
@@ -193,6 +195,65 @@ npm run start:prod
 # Web (from apps/web)
 npm run build
 npm run start
+```
+
+---
+
+## Roadmap & TODO
+
+High-level status for planning (e.g. Trello). Move items to **In progress** when work starts.
+
+### Done
+
+- Monorepo: NestJS API + Next.js dashboard
+- MySQL/Prisma, Docker Compose (MySQL + Redis), seed data
+- Auth (JWT) + role guards on API (`ADMIN`, `WAREHOUSE_MANAGER`, `PROCUREMENT`, etc.)
+- **Inventory:** warehouses, products, stock levels, movements, dashboard stats
+- **Production:** BOM, production orders (material use / finished goods), packaging reports
+- **Supply chain:** suppliers, purchase orders, receiving → inbound stock
+- **Sales:** customers, orders, shipping → outbound stock
+- **AI:** chat & analysis (Groq); optional `GROQ_API_KEY`
+- API: global exception filter, validation, Swagger, rate limiting, Redis cache fallback
+- Local setup docs (this README + `.env.example`)
+
+### In progress
+
+_None — add the card you are actively working on._
+
+Suggested next picks:
+
+- Frontend error handling (boundaries, query `isError`, mutation feedback)
+- Inventory RBAC & low-stock alerts
+
+### Pending (near-term)
+
+| Priority | Task |
+|----------|------|
+| P0 | Frontend resilience: `error.tsx`, normalize API error messages, toasts for failed mutations |
+| P0 | Query error states on main pages (dashboard, inventory, PO, sales) — avoid silent empty UI |
+| P1 | Low stock / reorder level (API + UI; `getLowStockItems` is currently a no-op) |
+| P1 | Frontend RBAC: hide menus and actions by role |
+| P1 | Warehouse staff role (narrower permissions than `WAREHOUSE_MANAGER`) |
+| P2 | Inter-warehouse stock transfer |
+| P2 | Stock opname workflow (adjustment + optional approval) |
+| P2 | Use `reservedQty` for sales/production reservations |
+| P3 | Enable `NotificationsModule` when Redis is available |
+| P3 | Align UI fields with API/schema (e.g. warehouse `code`) |
+| P3 | Prisma baseline migrations for production (not only `db push`) |
+
+### Backlog
+
+- Batch/lot traceability, SKU/barcode, vendor portal, logistics tracking
+- Reports/exports (PDF/Excel), demand forecasting
+- Optional supply-chain audit trail (e.g. hashed events) if compliance requires it
+- E2E tests (Playwright/Cypress), fuller CI for `apps/web`
+- i18n (UI is mixed EN/ID today)
+
+### Viewing data
+
+```bash
+cd apps/api
+npx prisma studio
 ```
 
 ---
